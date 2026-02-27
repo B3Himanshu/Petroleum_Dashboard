@@ -1,0 +1,247 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    /* Dashboard specific */
+    --sidebar-bg: 210 20% 15%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 65%;
+    --sidebar-accent: 217 91% 60%;
+    
+    /* Chart colors */
+    --chart-blue: 217 91% 60%;
+    --chart-green: 142 71% 45%;
+    --chart-yellow: 43 96% 56%;
+    --chart-orange: 25 95% 53%;
+    --chart-purple: 262 83% 58%;
+    
+    /* Metric card accents */
+    --metric-blue: 217 91% 60%;
+    --metric-green: 142 71% 45%;
+    --metric-yellow: 43 96% 56%;
+    --metric-orange: 25 95% 53%;
+    --metric-purple: 262 83% 58%;
+    --metric-pink: 330 81% 60%;
+    --metric-red: 0 84% 60%;
+    --metric-cyan: 188 78% 41%;
+    --metric-indigo: 239 84% 67%;
+    --metric-teal: 173 80% 40%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.04), 0 1px 2px -1px hsl(0 0% 0% / 0.04);
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+
+    --card: 0 0% 5%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 0 0% 5%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 0 0% 10%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 48%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 217 91% 60%;
+
+    /* Dashboard specific - Dark mode (slightly lighter than dashboard so sidebar is visible + border) */
+    --sidebar-bg: 0 0% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 65%;
+    --sidebar-accent: 217 91% 60%;
+    
+    /* Chart colors - Enhanced for dark mode */
+    --chart-blue: 217 91% 65%;
+    --chart-green: 142 71% 50%;
+    --chart-yellow: 43 96% 58%;
+    --chart-orange: 25 95% 58%;
+    --chart-purple: 262 83% 63%;
+    
+    /* Metric card accents - Enhanced for dark mode */
+    --metric-blue: 217 91% 65%;
+    --metric-green: 142 71% 50%;
+    --metric-yellow: 43 96% 58%;
+    --metric-orange: 25 95% 58%;
+    --metric-purple: 262 83% 63%;
+    --metric-pink: 330 81% 65%;
+    --metric-red: 0 84% 65%;
+    --metric-cyan: 188 78% 50%;
+    --metric-indigo: 239 84% 72%;
+    --metric-teal: 173 80% 50%;
+
+    /* Shadows - Enhanced for dark mode */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.2), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .sidebar-nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-muted transition-all duration-200 hover:bg-white/10 hover:text-sidebar-foreground;
+  }
+  
+  .sidebar-nav-item.active {
+    @apply bg-white/10 text-sidebar-foreground font-semibold;
+  }
+  
+  .metric-card {
+    @apply bg-card rounded-xl p-4 lg:p-5 shadow-card border border-border/50 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5;
+  }
+  
+  .chart-card {
+    @apply bg-card rounded-xl p-4 lg:p-6 shadow-card border border-border/50;
+  }
+  
+  .filter-button {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-all hover:border-primary hover:shadow-sm;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    opacity: 0;
+    animation: fadeIn 0.5s ease-out forwards;
+    will-change: opacity;
+  }
+  
+  .animate-slide-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideUp 0.5s ease-out forwards;
+    will-change: opacity, transform;
+  }
+  
+  .animate-scale-in {
+    opacity: 0;
+    transform: scale(0.95);
+    animation: scaleIn 0.3s ease-out forwards;
+    will-change: opacity, transform;
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Force GPU acceleration for better performance */
+.animate-fade-in,
+.animate-slide-up,
+.animate-scale-in {
+  backface-visibility: hidden;
+  perspective: 1000px;
+  transform: translateZ(0);
+}
+
+@keyframes fadeInOutline {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
