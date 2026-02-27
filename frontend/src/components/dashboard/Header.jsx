@@ -1,4 +1,3 @@
-import { Bell } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueInMillions = false, onToggleRevenueInMillions }) => {
@@ -42,11 +41,6 @@ export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueIn
             <Switch checked={showRevenueInMillions} onCheckedChange={onToggleRevenueInMillions} />
           </div>
         )}
-
-        <button className="relative p-1.5 sm:p-2 rounded-full hover:bg-muted transition-colors">
-          <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-          <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-destructive rounded-full" />
-        </button>
 
         <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-2 lg:pl-4 border-l border-border">
           <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-primary to-chart-blue flex items-center justify-center">
