@@ -37,12 +37,12 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
       return (
         <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
           <p className="text-sm font-semibold">{data.month}</p>
-          <p className="text-sm text-blue-600">Wages (7000, 7006, 7007): £{((data.labour || 0) / 1000).toFixed(0)}K</p>
-          <p className="text-sm text-cyan-600">Electricity (7200): £{((data.utilities || 0) / 1000).toFixed(0)}K</p>
-          <p className="text-sm text-orange-600">Maintenance (7300–7399): £{((data.maintenance || 0) / 1000).toFixed(0)}K</p>
-          <p className="text-sm text-violet-600">Rent (7100): £{((data.rent || 0) / 1000).toFixed(0)}K</p>
-          <p className="text-sm text-purple-600">General Rates (7103): £{((data.generalRates || 0) / 1000).toFixed(0)}K</p>
-          <p className="text-sm text-fuchsia-600">Credit Charges (7905): £{((data.creditCharges || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-blue-600">Wages: £{((data.labour || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-cyan-600">Electricity: £{((data.utilities || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-orange-600">Maintenance: £{((data.maintenance || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-violet-600">Rent: £{((data.rent || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-purple-600">General Rates: £{((data.generalRates || 0) / 1000).toFixed(0)}K</p>
+          <p className="text-sm text-fuchsia-600">Credit Charges: £{((data.creditCharges || 0) / 1000).toFixed(0)}K</p>
           <p className="text-sm font-bold border-t pt-1 mt-1">Total: £{((data.total || 0) / 1000).toFixed(0)}K</p>
         </div>
       );
@@ -108,7 +108,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#3b82f6"
                   fillOpacity={1}
                   fill="url(#colorLabour)"
-                  name="Wages (7000, 7006, 7007)"
+                  name="Wages"
                 />
                 <Area
                   type="monotone"
@@ -117,7 +117,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#06b6d4"
                   fillOpacity={1}
                   fill="url(#colorUtilities)"
-                  name="Electricity (7200)"
+                  name="Electricity"
                 />
                 <Area
                   type="monotone"
@@ -126,7 +126,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#f59e0b"
                   fillOpacity={1}
                   fill="url(#colorMaintenance)"
-                  name="Maintenance (7300–7399)"
+                  name="Maintenance"
                 />
                 <Area
                   type="monotone"
@@ -135,7 +135,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#7c3aed"
                   fillOpacity={1}
                   fill="url(#colorRent)"
-                  name="Rent (7100)"
+                  name="Rent"
                 />
                 <Area
                   type="monotone"
@@ -144,7 +144,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#8b5cf6"
                   fillOpacity={1}
                   fill="url(#colorGeneralRates)"
-                  name="General Rates (7103)"
+                  name="General Rates"
                 />
                 <Area
                   type="monotone"
@@ -153,7 +153,7 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
                   stroke="#c026d3"
                   fillOpacity={1}
                   fill="url(#colorCreditCharges)"
-                  name="Credit Charges (7905)"
+                  name="Credit Charges"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -161,37 +161,37 @@ export const OverheadTrendsChart = ({ startDate, endDate, siteIds }) => {
             {/* Summary stats */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-4 border-t">
               <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg Wages (7000, 7006, 7007)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg Wages</p>
                 <p className="text-lg font-bold text-blue-600">
                   £{(chartData.reduce((sum, item) => sum + (item.labour || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>
               </div>
               <div className="p-3 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg Electricity (7200)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg Electricity</p>
                 <p className="text-lg font-bold text-cyan-600">
                   £{(chartData.reduce((sum, item) => sum + (item.utilities || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>
               </div>
               <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg Maintenance (7300–7399)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg Maintenance</p>
                 <p className="text-lg font-bold text-orange-600">
                   £{(chartData.reduce((sum, item) => sum + (item.maintenance || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>
               </div>
               <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg Rent (7100)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg Rent</p>
                 <p className="text-lg font-bold text-violet-600">
                   £{(chartData.reduce((sum, item) => sum + (item.rent || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>
               </div>
               <div className="p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg General Rates (7103)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg General Rates</p>
                 <p className="text-lg font-bold text-purple-600">
                   £{(chartData.reduce((sum, item) => sum + (item.generalRates || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>
               </div>
               <div className="p-3 bg-fuchsia-50 dark:bg-fuchsia-950/20 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Avg Credit Charges (7905)</p>
+                <p className="text-xs text-muted-foreground mb-1">Avg Credit Charges</p>
                 <p className="text-lg font-bold text-fuchsia-600">
                   £{(chartData.reduce((sum, item) => sum + (item.creditCharges || 0), 0) / chartData.length / 1000).toFixed(0)}K
                 </p>

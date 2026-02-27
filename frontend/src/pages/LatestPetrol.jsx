@@ -12,8 +12,6 @@ import {
   Percent, 
   Users,
   Sparkles,
-  Car,
-  Calculator,
   BarChart3,
   PieChart,
   Droplets
@@ -32,7 +30,6 @@ import { format, subDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { FuelGradeMixChart } from "@/components/dashboard/FuelGradeMixChart";
 import { ShopProductCategoriesChart } from "@/components/dashboard/ShopProductCategoriesChart";
-import { ValetingCategoriesChart } from "@/components/dashboard/ValetingCategoriesChart";
 import { BunkeredNonBunkeredComparison } from "@/components/dashboard/BunkeredNonBunkeredComparison";
 import { BunkeredNonBunkeredSalesComparison } from "@/components/dashboard/BunkeredNonBunkeredSalesComparison";
 import { BunkeredNonBunkeredProfitComparison } from "@/components/dashboard/BunkeredNonBunkeredProfitComparison";
@@ -272,7 +269,7 @@ const TotalFuelVolumeCard = ({ data, loading, error, onClick, onBreakdown, fuelV
           </CardTitle>
           <Fuel className="w-4 h-4 text-blue-500" />
         </div>
-        <CardDescription className="text-xs">Average PPL (Pence Per Litre)</CardDescription>
+       
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -292,12 +289,11 @@ const TotalFuelVolumeCard = ({ data, loading, error, onClick, onBreakdown, fuelV
               <p className="text-2xl font-bold text-foreground">{formatCurrency(fuelSalesValue)}</p>
             )}
             {hasVolumeFromDetails ? (
-              <p className="text-xs text-muted-foreground mt-0.5">Volume from details (transition)</p>
+              <p className="text-sm font-medium text-muted-foreground mt-3">Average PPL (Pence Per Litre)</p>
             ) : !hasVolume && (
-              <p className="text-xs text-muted-foreground mt-0.5">Fuel sales (volume not in Sage)</p>
+              <p className="text-sm font-medium text-muted-foreground mt-3">Fuel sales (volume not in Sage)</p>
             )}
             <p className="text-lg font-semibold text-blue-600 mt-1">
-              <span className="text-xs font-normal text-muted-foreground mr-1">Avg PPL:</span>
               {Math.abs(data?.averagePPL || 0).toFixed(2)}p
             </p>
             {onBreakdown && (
@@ -334,7 +330,9 @@ const ShopSalesCard = ({ data, loading, error, onClick }) => {
           </CardTitle>
           <ShoppingBag className="w-4 h-4 text-purple-500" />
         </div>
-        <CardDescription className="text-xs">Not available on Sage</CardDescription>
+        <p className="text-sm font-medium text-muted-foreground mt-1.5">
+          Shop not managed by the client (PRL)
+        </p>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -342,10 +340,7 @@ const ShopSalesCard = ({ data, loading, error, onClick }) => {
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : (
-          <>
-            <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-            <p className="mt-2 text-xs text-muted-foreground">Shop not managed by the client (PRL)</p>
-          </>
+          <p className="text-2xl font-bold text-muted-foreground">N/A</p>
         )}
       </CardContent>
     </Card>
@@ -363,7 +358,6 @@ const AvgBasketSizeCard = ({ data, loading, error }) => {
           </CardTitle>
           <ShoppingCart className="w-4 h-4 text-orange-500" />
         </div>
-        <CardDescription className="text-xs">Total Shop Sales / Transactions</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -371,10 +365,7 @@ const AvgBasketSizeCard = ({ data, loading, error }) => {
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : (
-          <>
-            <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-            <p className="mt-2 text-xs text-muted-foreground">Not available on Sage (PRL)</p>
-          </>
+          <p className="text-2xl font-bold text-muted-foreground">N/A</p>
         )}
       </CardContent>
     </Card>
@@ -523,7 +514,6 @@ const ShopMarginCard = ({ data, loading, error, onClick }) => {
           </CardTitle>
           <Percent className="w-4 h-4 text-indigo-500" />
         </div>
-        <CardDescription className="text-xs">Not available on Sage</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -541,7 +531,7 @@ const ShopMarginCard = ({ data, loading, error, onClick }) => {
   );
 };
 
-// Card 8: Labour Cost as % of shop/fuel sales
+// Card 8: Labour Cost as % of shop or fuel sales
 const LabourCostPercentageCard = ({ data, loading, error, onClick, onBreakdown }) => {
   const getColorClass = (percentage) => {
     if (percentage <= 4) return 'text-green-600';
@@ -566,11 +556,10 @@ const LabourCostPercentageCard = ({ data, loading, error, onClick, onBreakdown }
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            Labour Cost as per shop/fuel sales %
+            Labour Cost as per shop or fuel sales %
           </CardTitle>
           <Users className="w-4 h-4 text-pink-500" />
         </div>
-        <CardDescription className="text-xs">Labour cost / Shop or fuel sales (value in %)</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -1346,14 +1335,10 @@ const LatestPetrol = () => {
 
             {/* Tabbed Navigation */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 h-auto">
+              <TabsList className="grid w-full grid-cols-1 mb-6 h-auto">
                 <TabsTrigger value="all-sections" className="text-xs sm:text-sm py-2">
                   <Sparkles className="w-3 h-3 mr-1" />
                   Dashboard
-                </TabsTrigger>
-                <TabsTrigger value="formulas" className="text-xs sm:text-sm py-2">
-                  <Calculator className="w-3 h-3 mr-1" />
-                  Formula Sheet
                 </TabsTrigger>
               </TabsList>
 
@@ -1443,68 +1428,6 @@ const LatestPetrol = () => {
                     <div className="h-px flex-1 bg-border" />
                   </div>
 
-                  {/* Four-metric block (wireframe: Non-Bunkered Fuel volume, Bunkered Fuel Volume, Non-Bunkered sales, Bunkered sales) */}
-                  <Card className="mb-4">
-                    <CardContent className="pt-6">
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground font-medium">Non-Bunkered Fuel volume</p>
-                          <p className="text-lg font-bold text-foreground mt-0.5">
-                            {totalFuelVolume?.nonBunkeredVolume != null
-                              ? totalFuelVolume.nonBunkeredVolume >= 1000000
-                                ? `${(totalFuelVolume.nonBunkeredVolume / 1000000).toFixed(2)}M L`
-                                : totalFuelVolume.nonBunkeredVolume >= 1000
-                                  ? `${(totalFuelVolume.nonBunkeredVolume / 1000).toFixed(0)}K L`
-                                  : `${(totalFuelVolume.nonBunkeredVolume || 0).toFixed(0)} L`
-                              : "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground font-medium">Bunkered Fuel Volume</p>
-                          <p className="text-lg font-bold text-foreground mt-0.5">
-                            {totalFuelVolume?.bunkeredVolume != null
-                              ? totalFuelVolume.bunkeredVolume >= 1000000
-                                ? `${(totalFuelVolume.bunkeredVolume / 1000000).toFixed(2)}M L`
-                                : totalFuelVolume.bunkeredVolume >= 1000
-                                  ? `${(totalFuelVolume.bunkeredVolume / 1000).toFixed(0)}K L`
-                                  : `${(totalFuelVolume.bunkeredVolume || 0).toFixed(0)} L`
-                              : "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground font-medium">Non-Bunkered sales</p>
-                          <p className="text-lg font-bold text-foreground mt-0.5">
-                            {totalFuelVolume?.nonBunkeredSales != null
-                              ? totalFuelVolume.nonBunkeredSales >= 1000000
-                                ? `£${(totalFuelVolume.nonBunkeredSales / 1000000).toFixed(2)}M`
-                                : totalFuelVolume.nonBunkeredSales >= 1000
-                                  ? `£${(totalFuelVolume.nonBunkeredSales / 1000).toFixed(0)}K`
-                                  : `£${(totalFuelVolume.nonBunkeredSales || 0).toFixed(0)}`
-                              : "N/A"}
-                          </p>
-                          {totalFuelVolume?.nonBunkeredSales == null && (
-                            <p className="text-xs text-muted-foreground">Bunkered/non-bunkered sales in same N/C (CSV)</p>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground font-medium">Bunkered sales</p>
-                          <p className="text-lg font-bold text-foreground mt-0.5">
-                            {totalFuelVolume?.bunkeredSales != null
-                              ? totalFuelVolume.bunkeredSales >= 1000000
-                                ? `£${(totalFuelVolume.bunkeredSales / 1000000).toFixed(2)}M`
-                                : totalFuelVolume.bunkeredSales >= 1000
-                                  ? `£${(totalFuelVolume.bunkeredSales / 1000).toFixed(0)}K`
-                                  : `£${(totalFuelVolume.bunkeredSales || 0).toFixed(0)}`
-                              : "N/A"}
-                          </p>
-                          {totalFuelVolume?.bunkeredSales == null && (
-                            <p className="text-xs text-muted-foreground">Bunkered/non-bunkered sales in same N/C (CSV)</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Monthly Performance Trends (Bar Graph) – wireframe title + Filter */}
                   <Card className="mb-4">
                     <CardHeader className="pb-2">
@@ -1553,141 +1476,6 @@ const LatestPetrol = () => {
                     </CardContent>
                   </Card>
                 </div>
-
-                {/* Shop Section (wireframe: Shop, Shop Sales, Shop Profit) */}
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <h2 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground px-3 sm:px-4 flex items-center gap-2">
-                    <ShoppingBag className="w-4 h-4" />
-                    Shop
-                  </h2>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                {/* Shop Metrics: PRL CSV – Shop Sales, Shop Profit, Shop Graph & Chart: Not available on Sage */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ShoppingBag className="w-5 h-5 text-purple-500" />
-                        Shop Sales
-                      </CardTitle>
-                      <CardDescription className="text-xs">Not available on Sage</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-                      <p className="text-sm text-muted-foreground mt-2">Shop not managed by the client (PRL)</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Euro className="w-5 h-5 text-green-500" />
-                        Shop Profit
-                      </CardTitle>
-                      <CardDescription className="text-xs">Not available on Sage</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-                      <p className="text-sm text-muted-foreground mt-2">Shop not managed by the client (PRL)</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Shop: Sales & Profit + Product Categories — PRL CSV: Not available on Sage */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <ShoppingBag className="w-5 h-5 text-purple-500" />
-                          Shop Sales & Profit
-                        </CardTitle>
-                      </div>
-                      <CardDescription>Shop margin over time — Not available on Sage (PRL)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">Not available on Sage; shop not managed by the client</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">Shop Product Categories</CardTitle>
-                      </div>
-                      <CardDescription>Top 5 product categories — Not available on Sage (PRL)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">Not available on Sage; shop not managed by the client</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-              {/* Valeting (wireframe: Valeting, Valet sales, Valeting Profit + Valet Margin line) */}
-              <div className="mb-4 flex items-center gap-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <h2 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground px-3 sm:px-4 flex items-center gap-2">
-                    <Car className="w-4 h-4" />
-                    Valeting
-                  </h2>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                {/* Valeting Metrics — PRL CSV: Valet Sales, Valet Profit, Valeting Chart: Not available on Sage */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Car className="w-5 h-5 text-blue-500" />
-                        Valet sales
-                      </CardTitle>
-                      <CardDescription className="text-xs">Not available on Sage</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-                      <p className="text-sm text-muted-foreground mt-2">Valet sales not available on Sage (PRL)</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Euro className="w-5 h-5 text-green-500" />
-                        Valeting Profit
-                      </CardTitle>
-                      <CardDescription className="text-xs">Not available on Sage</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-2xl font-bold text-muted-foreground">N/A</p>
-                      <p className="text-sm text-muted-foreground mt-2">Valet profit not available on Sage (PRL)</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Valet Margin — PRL CSV: Valeting Chart not available on Sage */}
-                <Card className="mt-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Valet Margin</CardTitle>
-                    </div>
-                    <CardDescription>Valet margin over time — Not available on Sage (PRL)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">Valet sales / profit not available on Sage (PRL)</div>
-                  </CardContent>
-                </Card>
-
-                {/* Valeting Categories — PRL CSV: Not available on Sage */}
-                <Card className="mt-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Valeting Categories</CardTitle>
-                    </div>
-                    <CardDescription>Rollover, Jet Wash, Vacuum, Airline — Not available on Sage (PRL)</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-center min-h-[200px] text-muted-foreground text-sm">Valeting chart not available on Sage (PRL)</div>
-                  </CardContent>
-                </Card>
 
                 {/* Return On Investment (wireframe: title "Return On Investment", subtitle "Cash", ROI trend, Top/Bottom sites with badges, disclaimer) */}
                 <div className="mb-4 flex items-center gap-2">
@@ -1919,20 +1707,6 @@ const LatestPetrol = () => {
                       />
                     </CardContent>
                   </Card>
-                  <Card className="flex flex-col">
-                    <CardHeader>
-                      <CardTitle className="text-base text-muted-foreground">Note</CardTitle>
-                    </CardHeader>
-                    <CardContent className="text-sm text-muted-foreground flex-1">
-                      <p className="mb-2">The charts display site rankings based on margin, highlighting top-performing sites and those needing improvement.</p>
-                      <p className="mb-2">The above chart is for depiction purposes only and does not represent actual values or the true ranking order. The logic described must be followed to derive the final output results.</p>
-                      {roi?.costRevenueRatio != null && (
-                        <p className="mt-3 pt-3 border-t border-border">
-                          <span className="font-medium text-foreground">Cost-Revenue Ratio</span> (Total Cost / Total Revenue): {(roi.costRevenueRatio * 100).toFixed(2)}%
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
                 </div>
 
                 {/* Overheads (wireframe: Overhead Cost Breakdown + Monthly Overhead Cost Trends; CSV N/C: 7103, 7100, 7200, 7801, 7905) */}
@@ -1953,9 +1727,6 @@ const LatestPetrol = () => {
                         </CardTitle>
                         <span className="text-xs text-muted-foreground font-medium">Filter: date range above</span>
                       </div>
-                      <CardDescription>
-                        Cost (£). Wages (from labour N/C: 7000,7006,7007). N/C: 7103 Rates, 7100 Rent, 7200 Electricity, 7801 Repair & Maintenance, 7905 Credit Charges
-                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       {loadingOverheadsData ? (
@@ -1998,7 +1769,7 @@ const LatestPetrol = () => {
                       )}
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="lg:col-span-2">
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">Monthly Overhead Cost Trends</CardTitle>
@@ -2010,92 +1781,6 @@ const LatestPetrol = () => {
                     </CardHeader>
                     <CardContent>
                       <OverheadTrendsChart startDate={startDate} endDate={endDate} siteIds={selectedSiteIds} />
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              {/* TAB 2: Formula Sheet */}
-              <TabsContent value="formulas" className="space-y-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="h-px flex-1 bg-border" />
-                  <h2 className="text-sm sm:text-base lg:text-lg font-semibold text-foreground px-3 sm:px-4">
-                    Formula Sheet
-                  </h2>
-                  <div className="h-px flex-1 bg-border" />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Formula 1 – PRL CSV: Not available on Sage */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">1. Avg. Basket Size</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        Total Shop Sales/ Transactions
-                      </code>
-                      <p className="mt-2 text-xs text-muted-foreground">Not available on Sage (PRL)</p>
-                    </CardContent>
-                  </Card>
-
-                  {/* Formula 2 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">2. Average PPL</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        Fuel profit/ fuel volume *100
-                      </code>
-                    </CardContent>
-                  </Card>
-
-                  {/* Formula 3 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">3. PPL after vending out the overheads</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        Over Heads/ Volume *100
-                      </code>
-                    </CardContent>
-                  </Card>
-
-                  {/* Formula 4 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">4. Customer Count</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        From EvoBos
-                      </code>
-                    </CardContent>
-                  </Card>
-
-                  {/* Formula 5 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">5. Labour Cost %</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        Labour cost/ Shop or fuel sales (value will be shown in %)
-                      </code>
-                    </CardContent>
-                  </Card>
-
-                  {/* Formula 6 */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">6. ROI Formula</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <code className="block bg-muted p-3 rounded text-sm font-mono">
-                        (Net Profit/ Total Investment or total operating cost) * 100
-                      </code>
                     </CardContent>
                   </Card>
                 </div>
@@ -2141,12 +1826,12 @@ const LatestPetrol = () => {
                     <DetailItem
                       label="Shop Sales"
                       value="N/A"
-                      subValue="Not available on Sage (PRL)"
+                      subValue="Not managed by the client (PRL)"
                     />
                     <DetailItem
                       label="Valet Sales"
                       value="N/A"
-                      subValue="Not available on Sage (PRL)"
+                      subValue="Not managed by the client (PRL)"
                     />
                     <DetailItem
                       label="TOTAL REVENUE"

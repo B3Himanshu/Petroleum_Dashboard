@@ -237,9 +237,6 @@ export const FuelGradeMixChart = ({ startDate, endDate, siteIds }) => {
             Profit
           </button>
         </div>
-        {viewMode === "profit" && (
-          <p className="text-xs text-muted-foreground pt-1">Profit by grade not in Sage; allocated by sales share.</p>
-        )}
       </CardHeader>
       <CardContent>
         {loading ? (

@@ -1,9 +1,7 @@
-import { Bell, Moon, Sun } from "lucide-react";
-import { useTheme } from "@/contexts/ThemeContext";
+import { Bell } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueInMillions = false, onToggleRevenueInMillions }) => {
-  const { theme, toggleTheme } = useTheme();
 
   // Format total sales value
   const formatTotalSales = (amount) => {
@@ -44,19 +42,6 @@ export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueIn
             <Switch checked={showRevenueInMillions} onCheckedChange={onToggleRevenueInMillions} />
           </div>
         )}
-
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-muted transition-colors"
-          title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-        >
-          {theme === "light" ? (
-            <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-          ) : (
-            <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          )}
-        </button>
 
         <button className="relative p-1.5 sm:p-2 rounded-full hover:bg-muted transition-colors">
           <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />

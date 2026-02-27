@@ -117,14 +117,14 @@ export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
             </div>
           )}
 
-          {/* PPL: show PPL after overheads when provided (Metrics Comparison), else Avg PPL */}
+          {/* PPL: show PPL after overheads when provided (Metrics Comparison), else Avg PPL — display as positive magnitude */}
           {(metrics?.pplAfterOverheads !== undefined || metrics?.avgPPL !== undefined) && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">
                 {metrics?.pplAfterOverheads !== undefined ? "PPL (after OH)" : "PPL"}
               </p>
               <p className="text-sm font-bold" style={{ color: '#8b5cf6' }}>
-                {(Number(metrics?.pplAfterOverheads ?? metrics?.avgPPL) || 0).toFixed(2)} p
+                {Math.abs(Number(metrics?.pplAfterOverheads ?? metrics?.avgPPL) || 0).toFixed(2)} p
               </p>
             </div>
           )}
