@@ -29,7 +29,7 @@ export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
   const formatCurrency = (amount) => {
     if (!amount) return "£0";
     if (amount >= 1000000) return `£${(amount / 1000000).toFixed(2)}M`;
-    if (amount >= 1000) return `£${(amount / 1000).toFixed(0)}K`;
+    if (amount >= 1000) return `£${(amount / 1000).toFixed(1)}k`;
     return `£${amount.toFixed(0)}`;
   };
 
