@@ -120,12 +120,15 @@ export const Sidebar = ({ isOpen, onToggle }) => {
             active={currentPath === "/comparison"}
           />
 
-          <NavItem
-            icon={<LayoutDashboard className="w-5 h-5" />}
-            label="Location Dashboard"
-            path="/location-dashboard"
-            active={currentPath === "/location-dashboard"}
-          />
+          {/* Location Dashboard - hidden for now; remove className="hidden" to show */}
+          <div className="hidden">
+            <NavItem
+              icon={<LayoutDashboard className="w-5 h-5" />}
+              label="Location Dashboard"
+              path="/location-dashboard"
+              active={currentPath === "/location-dashboard"}
+            />
+          </div>
         </nav>
       </aside>
     </>

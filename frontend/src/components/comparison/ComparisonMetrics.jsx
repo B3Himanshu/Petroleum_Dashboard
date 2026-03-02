@@ -122,10 +122,6 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
   const avgPPL2 = toPos(site2Data.avgPPL);
   const actualPPL1 = toPos(site1Data.pplAfterOverheads ?? site1Data.avgPPL);
   const actualPPL2 = toPos(site2Data.pplAfterOverheads ?? site2Data.avgPPL);
-  const basket1 = toPos(site1Data.basketSize);
-  const basket2 = toPos(site2Data.basketSize);
-  const cust1 = Math.abs(parseInt(site1Data.customerCount, 10) || 0);
-  const cust2 = Math.abs(parseInt(site2Data.customerCount, 10) || 0);
 
   // Comparison metrics to display
   const metrics = [
@@ -158,18 +154,6 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
       site1Value: actualPPL1,
       site2Value: actualPPL2,
       formatter: (val) => `${val?.toFixed(2) || '0.00'} p`,
-    },
-    {
-      label: "Customer Count",
-      site1Value: cust1,
-      site2Value: cust2,
-      formatter: (val) => val?.toLocaleString() || '0',
-    },
-    {
-      label: "Basket Size",
-      site1Value: basket1,
-      site2Value: basket2,
-      formatter: formatCurrency,
     },
   ];
 
