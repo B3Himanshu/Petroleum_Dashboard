@@ -118,7 +118,8 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
   const netSales2 = toPos(site2Data.netSales);
   const vol1 = toPos(site1Data.totalFuelVolume);
   const vol2 = toPos(site2Data.totalFuelVolume);
-  // Prefer Actual PPL (after overheads) when available, else Avg PPL
+  const avgPPL1 = toPos(site1Data.avgPPL);
+  const avgPPL2 = toPos(site2Data.avgPPL);
   const actualPPL1 = toPos(site1Data.pplAfterOverheads ?? site1Data.avgPPL);
   const actualPPL2 = toPos(site2Data.pplAfterOverheads ?? site2Data.avgPPL);
   const basket1 = toPos(site1Data.basketSize);
@@ -147,7 +148,13 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
       formatter: formatVolume,
     },
     {
-      label: "Actual PPL",
+      label: "Avg PPL",
+      site1Value: avgPPL1,
+      site2Value: avgPPL2,
+      formatter: (val) => `${val?.toFixed(2) || '0.00'} p`,
+    },
+    {
+      label: "Actual PPL (vending out OH)",
       site1Value: actualPPL1,
       site2Value: actualPPL2,
       formatter: (val) => `${val?.toFixed(2) || '0.00'} p`,
