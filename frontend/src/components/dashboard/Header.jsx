@@ -1,6 +1,6 @@
 import { Switch } from "@/components/ui/switch";
 
-export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueInMillions = false, onToggleRevenueInMillions }) => {
+export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueInMillions = false, onToggleRevenueInMillions, showTotalSales = true }) => {
 
   // Format total sales value
   const formatTotalSales = (amount) => {
@@ -23,16 +23,18 @@ export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueIn
 
       {/* Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-4">
-        {/* Total Sales - Blue Button Style - Show on mobile too */}
-        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 lg:py-2.5 rounded-lg font-semibold shadow-sm bg-primary text-primary-foreground">
-          <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Total Sales:</span>
-          <span className="text-xs sm:text-sm font-semibold sm:hidden">Sales:</span>
-          <div className="flex items-baseline gap-0.5 sm:gap-1">
-            <span className="text-xs sm:text-sm font-medium opacity-90">£</span>
-            <span className="text-sm sm:text-base font-bold">{salesFormatted.number}</span>
-            {salesFormatted.unit && <span className="text-xs sm:text-sm font-semibold opacity-90">{salesFormatted.unit}</span>}
+        {/* Total Sales - only on Dashboard; hidden on Metrics Comparison & Site Comparison */}
+        {showTotalSales && (
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 lg:py-2.5 rounded-lg font-semibold shadow-sm bg-primary text-primary-foreground">
+            <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Total Sales:</span>
+            <span className="text-xs sm:text-sm font-semibold sm:hidden">Sales:</span>
+            <div className="flex items-baseline gap-0.5 sm:gap-1">
+              <span className="text-xs sm:text-sm font-medium opacity-90">£</span>
+              <span className="text-sm sm:text-base font-bold">{salesFormatted.number}</span>
+              {salesFormatted.unit && <span className="text-xs sm:text-sm font-semibold opacity-90">{salesFormatted.unit}</span>}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Toggle: Revenue card in millions vs exact breakdown */}
         {typeof onToggleRevenueInMillions === "function" && (

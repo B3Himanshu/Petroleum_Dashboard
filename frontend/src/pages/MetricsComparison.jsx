@@ -752,6 +752,7 @@ const MetricsComparison = () => {
             sidebarOpen={sidebarOpen} 
             onToggleSidebar={toggleSidebar} 
             totalSales={totalSalesAllSites}
+            showTotalSales={false}
           />
           
           <div className="p-4 lg:p-6">
@@ -1056,12 +1057,21 @@ const MetricsComparison = () => {
                             </TableHead>
                           )}
                           {appliedMetrics.includes('ppl') && (
-                            <TableHead className="text-right min-w-[80px] sm:min-w-[100px] text-xs sm:text-sm">
-                              <div className="flex items-center justify-end gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#8b5cf6' }} />
-                                <span>PPL</span>
-                              </div>
-                            </TableHead>
+                            <>
+                              <TableHead className="text-right min-w-[80px] sm:min-w-[100px] text-xs sm:text-sm">
+                                <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#8b5cf6' }} />
+                                  <span>PPL</span>
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-right min-w-[80px] sm:min-w-[100px] text-xs sm:text-sm">
+                                <div className="flex items-center justify-end gap-1 sm:gap-2">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#8b5cf6' }} />
+                                  <span className="hidden sm:inline">Actual PPL</span>
+                                  <span className="sm:hidden">Actual</span>
+                                </div>
+                              </TableHead>
+                            </>
                           )}
                         </TableRow>
                       </TableHeader>
@@ -1088,9 +1098,14 @@ const MetricsComparison = () => {
                               </TableCell>
                             )}
                             {appliedMetrics.includes('ppl') && (
-                              <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: '#8b5cf6' }}>
-                                {(site.pplAfterOverheads ?? site.avgPPL)?.toFixed(2) || '0.00'} p
-                              </TableCell>
+                              <>
+                                <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: '#8b5cf6' }}>
+                                  {(site.avgPPL ?? 0).toFixed(2)} p
+                                </TableCell>
+                                <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: '#8b5cf6' }}>
+                                  {site.pplAfterOverheads != null ? `${(site.pplAfterOverheads).toFixed(2)} p` : '—'}
+                                </TableCell>
+                              </>
                             )}
                           </TableRow>
                         ))}

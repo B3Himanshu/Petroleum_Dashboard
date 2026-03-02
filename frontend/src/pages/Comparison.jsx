@@ -68,6 +68,7 @@ const Comparison = () => {
             sidebarOpen={sidebarOpen} 
             onToggleSidebar={toggleSidebar} 
             totalSales={totalSalesAllSites}
+            showTotalSales={false}
           />
           
           <div className="p-4 lg:p-6">
