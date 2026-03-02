@@ -3,8 +3,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { SitePhotoGallery } from "./SitePhotoGallery";
 import { ComparisonMetrics } from "./ComparisonMetrics";
-import { ComparisonBarChart } from "./ComparisonBarChart";
 import { ComparisonPieCharts } from "./ComparisonPieCharts";
+import { ComparisonPPLCharts } from "./ComparisonPPLCharts";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { sitesAPI, dashboardAPI } from "@/services/api";
 import { Filter, X } from "lucide-react";
@@ -367,15 +367,6 @@ export const SiteComparison = () => {
       {/* Comparison Charts */}
       {canCompare && (
         <>
-          {/* Bar Chart Comparison */}
-          <ComparisonBarChart
-            site1Data={site1Data}
-            site2Data={site2Data}
-            site1Name={sites.find(s => s.id === appliedSite1)?.name || "Site 1"}
-            site2Name={sites.find(s => s.id === appliedSite2)?.name || "Site 2"}
-            loading={loadingComparison}
-          />
-
           {/* Pie Charts Comparison - Fuel mix by grade (no shop/valet) */}
           <ComparisonPieCharts
             site1Id={appliedSite1}
@@ -387,6 +378,17 @@ export const SiteComparison = () => {
             loading={loadingComparison}
             comparisonSite1Data={site1Data}
             comparisonSite2Data={site2Data}
+          />
+
+          {/* PPL vs Actual PPL vending out OH - one chart per site */}
+          <ComparisonPPLCharts
+            site1Id={appliedSite1}
+            site2Id={appliedSite2}
+            site1Name={sites.find(s => s.id === appliedSite1)?.name || "Site 1"}
+            site2Name={sites.find(s => s.id === appliedSite2)?.name || "Site 2"}
+            startDate={startDate}
+            endDate={endDate}
+            loading={loadingComparison}
           />
         </>
       )}
