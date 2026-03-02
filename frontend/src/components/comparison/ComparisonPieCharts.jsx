@@ -12,13 +12,16 @@ import { dashboardAPI } from "@/services/api";
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const colorMap = {
-  "Fuel Sales": "#3b82f6",
-  "Shop Sales": "#f59e0b",
-  "Valet Sales": "#8b5cf6",
+// Fuel grade colors (5 types: Petrol, Diesel, Ultimate Petrol, Ultimate Diesel, Adblue)
+const FUEL_GRADE_COLORS = {
+  "Petrol": "#3b82f6",
+  "Diesel": "#10b981",
+  "Ultimate Petrol": "#f59e0b",
+  "Ultimate Diesel": "#8b5cf6",
+  "Adblue": "#06b6d4",
 };
 
-export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, months, years, loading, comparisonSite1Data, comparisonSite2Data }) => {
+export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, startDate, endDate, loading, comparisonSite1Data, comparisonSite2Data }) => {
   const [site1Data, setSite1Data] = useState([]);
   const [site2Data, setSite2Data] = useState([]);
   const [site1FullData, setSite1FullData] = useState([]);
@@ -31,7 +34,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const chart2Ref = useRef(null);
 
   useEffect(() => {
-    if (!site1Id || !site2Id || months.length === 0 || years.length === 0) {
+    if (!site1Id || !site2Id || !startDate || !endDate) {
       setSite1Data([]);
       setSite2Data([]);
       setSite1FullData([]);
@@ -42,53 +45,43 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
     const fetchData = async () => {
       try {
         setLoadingData(true);
-        let raw1 = await dashboardAPI.getSalesDistribution(site1Id, months, years);
-        let raw2 = await dashboardAPI.getSalesDistribution(site2Id, months, years);
-        // Handle nested response (e.g. { data: [...] }) or direct array
-        const data1 = Array.isArray(raw1) ? raw1 : (raw1?.data && Array.isArray(raw1.data) ? raw1.data : []);
-        const data2 = Array.isArray(raw2) ? raw2 : (raw2?.data && Array.isArray(raw2.data) ? raw2.data : []);
+        const [raw1, raw2] = await Promise.all([
+          dashboardAPI.getPetrolFuelGradeBreakdown(startDate, endDate, [site1Id]),
+          dashboardAPI.getPetrolFuelGradeBreakdown(startDate, endDate, [site2Id]),
+        ]);
+        const breakdown1 = raw1?.breakdown ?? raw1?.data?.breakdown ?? [];
+        const breakdown2 = raw2?.breakdown ?? raw2?.data?.breakdown ?? [];
 
-        // Transform data for charts - show all segments with minimum visual representation
-        const transformData = (data) => {
-          const num = (v) => Number(v) || 0;
-          const total = (Array.isArray(data) ? data : []).reduce((sum, item) => sum + num(item?.value ?? item?.amount ?? 0), 0);
-          
-          // Process all data - give 0% values a minimum visual representation
-          const allData = (Array.isArray(data) ? data : []).map((item) => {
-            const value = num(item?.value ?? item?.amount ?? 0);
+        const transformBreakdown = (breakdown) => {
+          const num = (v) => Math.abs(Number(v) || 0);
+          const list = Array.isArray(breakdown) ? breakdown : [];
+          const total = list.reduce((sum, item) => sum + num(item?.volume ?? item?.value ?? 0), 0);
+          const allData = list.map((item) => {
+            const value = num(item?.volume ?? item?.value ?? 0);
             const percentage = total > 0 ? (value / total) * 100 : 0;
-            // For 0% or very small values, assign a minimum visual value (0.5% of total)
-            const displayValue = value > 0.01 ? value : total * 0.005;
-            
+            // Use real value for chart so segments always draw; minimal slice for 0% so chart builds
+            const segmentValue = value > 0.01 ? value : (total > 0 ? total * 0.005 : 1);
+            const name = item.name || item.code || "—";
             return {
-              name: item.name,
+              name,
               value,
-              displayValue,
-              color: colorMap[item.name] || "#8884d8",
+              displayValue: segmentValue,
+              color: FUEL_GRADE_COLORS[name] || "#8884d8",
               percentage,
-              isZero: value <= 0.01
+              isZero: value <= 0.01,
             };
           });
-          
-          return {
-            chartData: allData, // All segments for rendering
-            allData: allData,   // Same for legend
-            total
-          };
+          return { chartData: allData, allData: allData, total };
         };
 
-        const transformed1 = transformData(data1);
-        const transformed2 = transformData(data2);
-        
-        // Use chartData which now includes all segments with displayValue
+        const transformed1 = transformBreakdown(breakdown1);
+        const transformed2 = transformBreakdown(breakdown2);
         setSite1Data(transformed1.chartData);
         setSite2Data(transformed2.chartData);
-        
-        // Store full data for legend (same as chartData now)
         setSite1FullData(transformed1.allData);
         setSite2FullData(transformed2.allData);
       } catch (error) {
-        console.error('Error fetching sales distribution:', error);
+        console.error("Error fetching fuel grade breakdown:", error);
         setSite1Data([]);
         setSite2Data([]);
         setSite1FullData([]);
@@ -99,7 +92,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
     };
 
     fetchData();
-  }, [site1Id, site2Id, months, years]);
+  }, [site1Id, site2Id, startDate, endDate]);
 
   // Intersection Observer for scroll-triggered animation
   useEffect(() => {
@@ -182,25 +175,21 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const animTotal1 = baseTotal1 * animationProgress;
   const animTotal2 = baseTotal2 * animationProgress;
 
-  // Create chart data for Chart.js with animation
+  // Create chart data for Chart.js - use actual values so the doughnut always builds (no dependency on animationProgress)
   const createChartData = (data, fullData) => {
     return {
       labels: data.map(item => item.name),
       datasets: [
         {
           label: 'Sales',
-          data: data.map(item => {
-            // Animate the display value
-            const animatedValue = item.displayValue * animationProgress;
-            return animatedValue;
-          }),
-          backgroundColor: data.map(item => item.isZero ? `${item.color}4D` : item.color), // 30% opacity for 0% values
+          data: data.map(item => item.displayValue),
+          backgroundColor: data.map(item => item.isZero ? `${item.color}4D` : item.color),
           borderColor: data.map(item => 'hsl(var(--card))'),
           borderWidth: 5,
           borderRadius: 6,
-          spacing: 6, // Gap between segments
-          cutout: '60%', // Donut hole size
-          originalData: fullData, // Store original data for tooltip
+          spacing: 6,
+          cutout: '60%',
+          originalData: fullData,
         },
       ],
     };
@@ -230,12 +219,12 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
             const index = context.dataIndex;
             const originalItem = fullData[index];
             const actualValue = originalItem?.value || 0;
-            const percentage = originalItem?.percentage !== undefined 
-              ? originalItem.percentage.toFixed(3) 
-              : (total > 0 ? ((actualValue / total) * 100).toFixed(3) : '0.000');
+            const percentage = originalItem?.percentage !== undefined
+              ? originalItem.percentage.toFixed(2)
+              : (total > 0 ? ((actualValue / total) * 100).toFixed(2) : "0.00");
             return [
-              `Sales: £${actualValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-              `${percentage}% of total`
+              `Sales: £${actualValue.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+              `${percentage}% of total`,
             ];
           }
         }
@@ -251,19 +240,6 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const chart2Data = createChartData(site2Data, site2FullData.length > 0 ? site2FullData : site2Data);
   const chart1Options = createChartOptions(site1FullData.length > 0 ? site1FullData : site1Data, baseTotal1);
   const chart2Options = createChartOptions(site2FullData.length > 0 ? site2FullData : site2Data, baseTotal2);
-
-  // Update charts when animation progresses
-  useEffect(() => {
-    if (chart1Ref.current && chart2Ref.current && hasAnimated && animationProgress > 0) {
-      // Force chart update by updating the data
-      if (chart1Ref.current.chartInstance) {
-        chart1Ref.current.chartInstance.update();
-      }
-      if (chart2Ref.current.chartInstance) {
-        chart2Ref.current.chartInstance.update();
-      }
-    }
-  }, [animationProgress, hasAnimated]);
 
   // Early return after all hooks
   if (loading || loadingData) {
@@ -291,7 +267,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
             </div>
             <div>
               <h3 className="text-lg font-bold text-foreground">{site1Name}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Sales Distribution</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fuel sales distribution</p>
             </div>
           </div>
           <div className="px-3 py-1.5 rounded-md bg-primary/5 border border-primary/20">
@@ -306,10 +282,11 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
           </div>
         ) : (
           <div className="w-full relative flex items-center justify-center" style={{ minHeight: '200px', height: '280px', maxHeight: '280px' }}>
-            <div className="w-full h-full" style={{ aspectRatio: '1', maxWidth: '100%', maxHeight: '100%', position: 'relative' }}>
-              <Doughnut 
+            <div className="w-full h-full" style={{ width: '100%', height: '280px', position: 'relative' }}>
+              <Doughnut
+                key={`chart1-${site1Id}-${startDate}-${endDate}`}
                 ref={chart1Ref}
-                data={chart1Data} 
+                data={chart1Data}
                 options={chart1Options}
               />
               {/* Center label */}
@@ -333,7 +310,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
                   <span className="text-sm font-medium text-foreground">
                     <span style={{ color: item.color, fontWeight: 600 }}>{item.name}</span>
                     <span className="ml-1.5 text-muted-foreground font-normal">
-                      ({item.percentage !== undefined ? item.percentage.toFixed(3) : (baseTotal1 > 0 ? ((item.value / baseTotal1) * 100).toFixed(3) : '0.000')}%)
+                      ({item.percentage !== undefined ? item.percentage.toFixed(2) : (baseTotal1 > 0 ? ((item.value / baseTotal1) * 100).toFixed(2) : '0.00')}%)
                     </span>
                   </span>
                 </div>
@@ -352,7 +329,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
             </div>
             <div>
               <h3 className="text-lg font-bold text-foreground">{site2Name}</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Sales Distribution</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fuel sales distribution</p>
             </div>
           </div>
           <div className="px-3 py-1.5 rounded-md bg-primary/5 border border-primary/20">
@@ -367,10 +344,11 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
           </div>
         ) : (
           <div className="w-full relative flex items-center justify-center" style={{ minHeight: '200px', height: '280px', maxHeight: '280px' }}>
-            <div className="w-full h-full" style={{ aspectRatio: '1', maxWidth: '100%', maxHeight: '100%', position: 'relative' }}>
-              <Doughnut 
+            <div className="w-full h-full" style={{ width: '100%', height: '280px', position: 'relative' }}>
+              <Doughnut
+                key={`chart2-${site2Id}-${startDate}-${endDate}`}
                 ref={chart2Ref}
-                data={chart2Data} 
+                data={chart2Data}
                 options={chart2Options}
               />
               {/* Center label */}
@@ -394,7 +372,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
                   <span className="text-sm font-medium text-foreground">
                     <span style={{ color: item.color, fontWeight: 600 }}>{item.name}</span>
                     <span className="ml-1.5 text-muted-foreground font-normal">
-                      ({item.percentage !== undefined ? item.percentage.toFixed(3) : (baseTotal2 > 0 ? ((item.value / baseTotal2) * 100).toFixed(3) : '0.000')}%)
+                      ({item.percentage !== undefined ? item.percentage.toFixed(2) : (baseTotal2 > 0 ? ((item.value / baseTotal2) * 100).toFixed(2) : '0.00')}%)
                     </span>
                   </span>
                 </div>

@@ -376,14 +376,14 @@ export const SiteComparison = () => {
             loading={loadingComparison}
           />
 
-          {/* Pie Charts Comparison */}
+          {/* Pie Charts Comparison - Fuel mix by grade (no shop/valet) */}
           <ComparisonPieCharts
             site1Id={appliedSite1}
             site2Id={appliedSite2}
             site1Name={sites.find(s => s.id === appliedSite1)?.name || "Site 1"}
             site2Name={sites.find(s => s.id === appliedSite2)?.name || "Site 2"}
-            months={derivedMonths}
-            years={derivedYears}
+            startDate={startDate}
+            endDate={endDate}
             loading={loadingComparison}
             comparisonSite1Data={site1Data}
             comparisonSite2Data={site2Data}
