@@ -73,6 +73,19 @@ function SiteFilterMultiSelect({ sites, selectedIds, onChange }) {
   const filteredSites = searchLower
     ? sites.filter((s) => (s.name || "").toLowerCase().includes(searchLower))
     : sites;
+  // Show selected sites at the top (order: selected first in pendingIds order, then unselected)
+  const sortedSites = [...filteredSites].sort((a, b) => {
+    const aSelected = pendingIds.includes(a.id);
+    const bSelected = pendingIds.includes(b.id);
+    if (aSelected && !bSelected) return -1;
+    if (!aSelected && bSelected) return 1;
+    if (aSelected && bSelected) {
+      const aIdx = pendingIds.indexOf(a.id);
+      const bIdx = pendingIds.indexOf(b.id);
+      return aIdx - bIdx;
+    }
+    return 0;
+  });
 
   const allPendingSelected = pendingIds.length === sites.length && sites.length > 0;
   const handleToggle = (id) => {
@@ -135,7 +148,7 @@ function SiteFilterMultiSelect({ sites, selectedIds, onChange }) {
           </div>
         </div>
         <div className="max-h-[300px] overflow-y-auto p-2">
-          {filteredSites.map((site) => (
+          {sortedSites.map((site) => (
             <div
               key={site.id}
               className="flex items-center space-x-2 p-2 hover:bg-accent rounded-sm cursor-pointer"
