@@ -379,7 +379,7 @@ const TotalNetProfitCard = ({ data, loading, error, onClick, onBreakdown, showIn
     const a = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
     const abs = a < 0 ? -a : a;
     if (abs >= 1000000) return `£${(abs / 1000000).toFixed(2)}M`;
-    if (abs >= 1000) return `£${(abs / 1000).toFixed(0)}K`;
+    if (abs >= 1000) return `£${(abs / 1000).toFixed(2)}K`;
     return `£${abs.toFixed(2)}`;
   };
   const formatCurrencyExact2 = (amount) => {
@@ -473,8 +473,8 @@ const PPLAfterOverheadsCard = ({ data, loading, error, onClick, onBreakdown }) =
           <p className="text-sm text-destructive">{error}</p>
         ) : (
           <>
-            <p className="text-2xl font-bold text-blue-600">
-              {Math.abs(data?.value ?? 0).toFixed(2)}p
+            <p className={cn("text-2xl font-bold", (data?.value ?? 0) < 0 ? "text-destructive" : "text-blue-600")}>
+              {(data?.value ?? 0) < 0 ? "-" : ""}{Math.abs(data?.value ?? 0).toFixed(2)}p
             </p>
             {(totalOverheads > 0 && (data?.value ?? 0) === 0) && (
               <div className="mt-2 text-xs text-muted-foreground">
@@ -1994,7 +1994,7 @@ const LatestPetrol = () => {
                     <div className="border-t border-border pt-3 mt-3 space-y-1">
                       <DetailItem label="Avg PPL" value={`${Math.abs(pplAfterOverheads?.avgPPL ?? 0).toFixed(2)}p`} />
                       <DetailItem label="OH Deduction" value={`${Math.abs(pplAfterOverheads?.overheadPerUnitPence ?? 0).toFixed(2)}p`} />
-                      <DetailItem label="PPL after overheads" value={`${Math.abs(pplAfterOverheads?.value ?? 0).toFixed(2)}p`} isTotal />
+                      <DetailItem label="PPL after overheads" value={`${(Number(pplAfterOverheads?.value ?? 0)) < 0 ? "-" : ""}${Math.abs(Number(pplAfterOverheads?.value ?? 0)).toFixed(2)}p`} isTotal />
                     </div>
                   </>
                 ) : (

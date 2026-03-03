@@ -458,9 +458,9 @@ router.get('/net-sales', async (req, res) => {
     const siteIds = parseSiteIds(req);
     const { deptClause, params } = buildDeptFilter([range.startDate, range.endDate], siteIds);
     const fuel = await query(`SELECT COALESCE(SUM(amount),0) as total FROM ${TRANSACTIONS_TABLE} WHERE nominal_code IN ('4000','4001','4002','4003','4008') AND transaction_date >= $1::date AND transaction_date <= $2::date${deptClause}`, params);
-    const rev = await query(`SELECT COALESCE(SUM(amount),0) as total FROM ${TRANSACTIONS_TABLE} WHERE ${SITE_REVENUE_SQL} AND transaction_date >= $1::date AND transaction_date <= $2::date${deptClause}`, params);
+    const rev = await query(`SELECT COALESCE(SUM(ABS(amount)),0) as total FROM ${TRANSACTIONS_TABLE} WHERE ${SITE_REVENUE_SQL} AND transaction_date >= $1::date AND transaction_date <= $2::date${deptClause}`, params);
     const fuelSales = Math.abs(parseFloat(fuel.rows[0]?.total || 0));
-    const totalRevenue = Math.abs(parseFloat(rev.rows[0]?.total || 0));
+    const totalRevenue = parseFloat(rev.rows[0]?.total || 0);
     res.json({ success: true, data: { totalNetSales: totalRevenue, totalRevenue, fuelSales, startDate: range.startDate, endDate: range.endDate } });
   } catch (e) {
     res.status(500).json({ success: false, message: e.message });
