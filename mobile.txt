@@ -1,0 +1,816 @@
+================================================================================
+HSRL DASHBOARD — COMPLETE MOBILE RESPONSIVE REFERENCE
+================================================================================
+Mobile = below 640px (sm breakpoint). Detection: useIsSmUp() hook or
+isMobile state with window.innerWidth < 640.
+
+Desktop classes (sm:/md:/lg:/xl:/2xl:) are FROZEN — never modified during
+mobile work. Only base and sm: classes are touched.
+
+================================================================================
+1. HEADER — MOBILE LAYOUT
+================================================================================
+
+CONTAINER:
+  flex flex-col gap-1 bg-transparent px-3 py-1.5
+  (desktop: sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-4)
+
+ROW 1: [Hamburger] [Company Name]
+  Row classes: flex w-full min-w-0 items-center gap-2
+
+  HAMBURGER BUTTON:
+    Container:   p-1 rounded-lg bg-muted/40 hover:bg-muted/70 border border-border/60
+    Icon:        w-4 h-4 text-foreground
+    (desktop: sm:p-1.5, icon sm:w-5 sm:h-5)
+
+  COMPANY NAME ("HIGHWAY STOPS RETAIL LIMITED"):
+    Container:   min-w-0 flex-1
+    Text:        text-sm font-bold uppercase tracking-wide text-foreground
+                 block truncate
+    (desktop: sm:text-xs md:text-sm lg:text-base sm:max-w-[min(100%,28rem)])
+
+ROW 2: [Sales Pill] [Toggles] [HSRL Badge]
+  Row classes: flex w-full min-w-0 items-center gap-1.5
+
+  SALES PILL:
+    Background:  bg-primary text-primary-foreground
+    Shape:       rounded-lg shadow-sm
+    Padding:     px-2 py-1
+    Label:       "Sales:" visible (sm:hidden), "Total Sales:" hidden (hidden sm:inline)
+    Label font:  text-xs font-semibold
+    Value font:  text-sm font-bold
+    Currency:    text-xs font-medium opacity-90
+    (desktop: sm:px-3 lg:px-4 sm:py-2, value sm:text-lg)
+
+  "SHOW M" TOGGLE:
+    Container:   px-1.5 py-0.5 gap-1.5 rounded-lg border border-border bg-background
+    Label:       HIDDEN on mobile (hidden sm:inline)
+    Switch only visible on mobile.
+    (desktop: sm:px-2 sm:py-1 sm:gap-2, label visible)
+
+  "DARK UI" TOGGLE:
+    Same container as Show M.
+    Label:       HIDDEN on mobile.
+
+  HSRL BADGE:
+    Separator:   border-l border-border pl-1.5
+    Height:      h-6
+    Padding:     px-1.5
+    Shape:       rounded-lg
+    Gradient:    bg-gradient-to-br from-primary to-chart-blue
+    Text:        text-[10px] font-bold text-primary-foreground tracking-wide
+    (desktop: sm:h-8 lg:h-10 sm:px-2.5 lg:px-3 sm:rounded-full sm:text-sm lg:text-base)
+
+================================================================================
+2. SIDEBAR — MOBILE LAYOUT
+================================================================================
+
+OVERLAY (mobile only):
+  fixed inset-0 bg-black/50 z-40 lg:hidden
+  Tapping overlay closes sidebar.
+
+SIDEBAR PANEL:
+  Position:    fixed top-0 left-0
+  Size:        width 16rem (256px), height 100dvh
+  Z-index:     1000
+  Background:  bg-sidebar-bg/90 (HSL 210 55% 98% at 90%)
+  Blur:        backdrop-blur-xl
+  Border:      border-r border-white/30
+  Open:        translate-x-0
+  Closed:      -translate-x-full pointer-events-none
+  Transition:  500ms ease-[cubic-bezier(0.4,0,0.2,1)]
+
+NAV ITEMS:
+  Base:   px-4 py-3 rounded-lg text-sidebar-muted
+  Hover:  bg-sidebar-accent/10 text-sidebar-foreground
+  Active: bg-sidebar-accent/15 text-sidebar-foreground font-semibold
+  Icon:   w-5 h-5 gap-3
+
+SESSION CARD (footer):
+  bg-background/70 border border-border/70 rounded-xl px-3 py-2.5
+  Name:  text-sm font-semibold text-sidebar-foreground
+  Label: text-xs text-sidebar-muted
+  Admin: bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/30
+  User:  bg-blue-500/20 text-blue-400 ring-2 ring-blue-500/30
+
+DOWNLOAD APP BUTTON:
+  Visibility:  lg:hidden (mobile only)
+  Gated by:    isAndroid user-agent check
+
+================================================================================
+3. KPI CARDS (MetricCard) — MOBILE STYLING
+================================================================================
+
+CARD CONTAINER:
+  Mobile:      rounded-xl p-3 border border-border shadow-sm
+  Hover:       hover:shadow-md transition-all duration-300
+  Surface:     bg-card (glass: hsl(card/0.82) backdrop-blur-16px)
+  (desktop: sm:rounded-2xl sm:p-4 lg:p-5)
+
+ICON BOX:
+  Mobile:      w-8 h-8 rounded-lg
+  Icon:        w-4 h-4
+  Color:       bg-metric-*/10 text-metric-* (per card)
+  Hover:       group-hover:scale-110
+  (desktop: sm:w-10 sm:h-10 lg:w-11 lg:h-11 sm:rounded-xl, icon sm:w-5 sm:h-5)
+
+TITLE:
+  Mobile:      text-sm font-semibold uppercase tracking-wide text-muted-foreground
+  (desktop: sm:text-base)
+
+VALUE:
+  Mobile:      text-[1.75rem] (28px) font-bold text-foreground tracking-tight
+  (desktop: sm:text-[2.1rem] — 33.6px)
+
+SUBTITLE:
+  Mobile:      text-sm text-muted-foreground mt-1
+  (desktop: sm:text-base sm:mt-1.5)
+
+CHANGE INDICATOR:
+  text-xs — metric-green (positive), destructive (negative), muted-foreground (zero)
+
+SPARKLINE CONTAINER:
+  Mobile:      h-16 mt-3 -mb-2 -mx-1
+  Line stroke: 2.5px, gradient opacity 0.3→0
+  Bar opacity: 0.8, radius [6,6,0,0]
+  (desktop: sm:h-20 sm:mt-4 sm:-mx-2)
+
+CARD ICON ACCENT COLORS:
+  Card                    | Color token      | HSL
+  ------------------------|------------------|---
+  Total Site Revenue      | metric-green     | 142 71% 45%
+  Total Fuel Volume       | metric-blue      | 231 89% 64%
+  Gross PPL + PPL after OH| metric-cyan      | 188 78% 41%
+  Gross Profit            | metric-green     | 142 71% 45%
+  Total Net Profit        | metric-green     | 142 71% 45%
+  EBITDA                  | metric-blue      | 231 89% 64%
+  Labour Cost %           | metric-pink      | 330 81% 60%
+  Net Sales               | metric-green     | 142 71% 45%
+  Gross PPL (standalone)  | metric-purple    | 262 83% 58%
+  PPL after O/H (standalone)| metric-red     | 0 84% 60%
+  Active Sites            | metric-cyan      | 188 78% 41%
+  Avg Sale/Site           | metric-indigo    | 239 84% 67%
+  Bank Balance            | metric-teal      | 173 80% 40%
+  Labour Cost (standalone)| metric-blue      | 231 89% 64%
+  Profit                  | metric-orange    | 25 95% 53%
+
+================================================================================
+4. FILTER SECTION — MOBILE STYLING
+================================================================================
+
+CONTAINER:
+  Mobile:      chart-card mb-3
+
+FILTER CONTROLS:
+  Mobile:      flex flex-col gap-3 (stacked vertically)
+  (desktop: sm:flex-row sm:flex-wrap sm:items-end lg:gap-4)
+
+SELECT TRIGGER:
+  Mobile:      bg-background border-border h-9 text-sm
+  (desktop: sm:h-10 sm:text-base)
+
+MULTI-SELECT POPOVER:
+  Mobile:      w-[calc(100vw-2rem)] (full width minus margins)
+  Options:     max-h-[300px] overflow-y-auto p-2
+  (desktop: sm:w-[200px])
+
+APPLY BUTTON:
+  Mobile:      w-full h-9 mt-1
+  (desktop: sm:w-auto sm:h-10 sm:mt-0)
+
+================================================================================
+5. MONTHLY FUEL PERFORMANCE CHART
+================================================================================
+File: MonthlyFuelPerformanceChart.jsx
+
+CONTAINER:
+  Mobile:      chart-card rounded-xl border border-border p-2 min-h-[380px]
+  (desktop: p-3 min-h-[340px])
+
+CHART HEIGHT:
+  Mobile:      h-[min(22rem,58dvh)] min-h-[300px] max-h-[380px]
+  (desktop: sm:h-[300px])
+
+CHART MARGINS:
+  Mobile:      { top: 4, left: 14, right: 22, bottom: 52 }
+  Desktop:     { top: 6, left: 48, right: 36, bottom: 36 }
+
+BAR STYLING:
+  Mobile:      barSize 16px, barGap 4px
+  Category gap: few months 36%, many months 16%
+  (desktop: barSize 28px, barGap 8px, gap 30%/14%)
+
+LEFT Y-AXIS (Margin %):
+  Width:       46px (desktop: 78px)
+  Tick font:   11px
+  Label:       "Margin %", position "left", offset 2, dx -4, fontSize 10
+  (desktop: label fontSize ~12px, offset 6, dx -6)
+
+RIGHT Y-AXIS (£M / £k):
+  Width:       52px (desktop: 76px)
+  Tick font:   11px
+  Label:       position "right", offset 4, dx 6, fontSize 10
+  (desktop: label fontSize ~12px, offset 8, dx 6)
+
+X-AXIS:
+  Font size:   10px (desktop: ~11px)
+  Angle:       -45° (desktop: 0°)
+  Text anchor: "end" (desktop: "middle")
+  Height:      52px (desktop: 32px)
+  Min tick gap:0 (desktop: 4)
+  Formatter:   formatMonthAxisTick — "Jan 25" (shortened)
+
+LEGEND:
+  Padding top: 6px (desktop: 8px)
+  Font size:   11px (desktop: ~13px)
+  Gap:         0.2rem 0.4rem (desktop: 0.35rem 0.65rem)
+  Icon size:   9px (desktop: ~10px)
+
+TOOLTIP (mobile only — absolute positioned):
+  Position:    top: 8, right: 8 (over card header, not over chart bars)
+  Background:  hsl(222, 47%, 11%)
+  Border:      1px solid hsl(217, 33%, 20%)
+  Padding:     8px 12px
+  Radius:      10px
+  Min width:   160px
+  Shadow:      0 8px 24px rgba(0,0,0,0.5)
+  (desktop: follows cursor)
+
+================================================================================
+6. VOLUME VS GROSS PPL CHART
+================================================================================
+File: VolumeVsPPLChart.jsx
+
+CHART HEIGHT:
+  Mobile:      300px (desktop: 252px)
+
+CHART MARGINS:
+  Mobile:      { top: 4, left: 14, right: 22, bottom: 52 }
+  Desktop:     { top: 6, left: 20, right: 42, bottom: 26 }
+
+BAR STYLING:
+  Mobile:      barSize 14px, barGap 3px
+  Category gap: few months 36%, many months 16%
+  (desktop: barSize 30px, barGap 5px, gap 24%/10%)
+
+LEFT Y-AXIS (Gross PPL):
+  Width:       46px (desktop: 58px)
+  Tick font:   11px
+  Label:       "Gross PPL", position "left", offset 2, dx -4, fontSize 10
+  (desktop: offset 6, dx -6)
+
+RIGHT Y-AXIS (Volume):
+  Width:       52px (desktop: 56px)
+  Tick font:   11px
+  Label:       "Vol (M/k)", position "right", offset 4, dx 6, fontSize 10
+  (desktop: offset 8, dx 6)
+
+X-AXIS:
+  Font size:   10px
+  Angle:       -45° (desktop: 0°)
+  Height:      52px (desktop: 28px)
+  Min tick gap:0
+
+LEGEND:
+  Padding top: 6px (desktop: 4px)
+  Font size:   11px
+  Gap:         0.15rem 0.4rem (desktop: 0.25rem 0.75rem)
+  Icon size:   8px
+
+================================================================================
+7. SHOP & COFFEE & VALET COMBO CHARTS
+================================================================================
+File: ShopValetMonthlyComboCharts.jsx
+
+CONTAINER:
+  Mobile:      chart-card rounded-xl border border-border p-2 min-h-[300px]
+  (desktop: p-3 min-h-[340px])
+
+CHART HEIGHT:
+  Mobile:      280px (desktop: 260px)
+
+CHART MARGINS (with shopMobileAxisLabels=true):
+  Mobile:      { top: 4, left: 14, right: 18, bottom: 46 }
+  With valet:  { top: 4, left: 14, right: 22, bottom: 52 }
+  Desktop:     { top: 6, left: 48, right: 36, bottom: 36 }
+
+CHART MARGINS (without shopMobileAxisLabels):
+  Mobile:      { top: 4, left: 0, right: 4, bottom: 46 }
+
+BAR STYLING:
+  Mobile:      barSize 11px, barGap 3px
+  (desktop: barSize 28px, barGap 8px)
+
+LEFT Y-AXIS (Margin %):
+  With axis labels:
+    Width:     46px (valet: 52px)
+    Tick font: 10px
+    Label:     position "left", offset 2, dx -4, fontSize 9
+  Without axis labels:
+    Label:     position "insideLeft", offset 0, dx -2, dy 32, fontSize 9
+
+RIGHT Y-AXIS (£M / £k):
+  With axis labels:
+    Width:     50px (valet: 56px)
+    Tick font: 10px
+    Label:     position "right", offset 4, dx 6, fontSize 9
+  Without axis labels:
+    Label:     position "insideRight", offset 0, dx 2, dy -16, fontSize 9
+
+X-AXIS:
+  Font size:   9px (desktop: ~11px)
+  Angle:       -45° (desktop: 0° or -38° many months)
+  Height:      46px (many months: 52px)
+  Min tick gap:0 (desktop: 4)
+
+LEGEND:
+  Padding top: 4px (desktop: 10px)
+  Font size:   10px (desktop: ~13px)
+  Gap:         0.2rem 0.4rem (desktop: 0.35rem 0.75rem)
+  Icon size:   8px (desktop: ~10px)
+
+TOOLTIP (mobile only):
+  Position:    absolute top: 8, right: 8
+  Same styling as Fuel chart tooltip.
+
+================================================================================
+8. MONTHLY PERFORMANCE CHART
+================================================================================
+File: MonthlyPerformanceChart.jsx
+
+CONTAINER:
+  Mobile:      chart-card min-h-[450px] h-auto
+  (desktop: sm:min-h-[420px] sm:h-[420px])
+
+CHART WRAPPER:
+  Mobile:      w-full h-[320px] overflow-x-hidden
+  (desktop: sm:h-[calc(100%-120px)] lg:h-[85%])
+
+CHART MARGINS:
+  Mobile:      { top: 10, right: 5, left: -5, bottom: 40 }
+  (same for desktop)
+
+X-AXIS:
+  Angle:       -45°
+  Text anchor: "end"
+  Height:      52px
+  Min tick gap:0
+
+Y-AXIS:
+  Width:       44px
+
+LEGEND:
+  Padding top: 10px
+  Font size:   10px (desktop: 14px)
+  Icon size:   10px (desktop: 12px)
+
+CONTROLS:
+  Buttons:     p-2 (desktop: sm:p-3)
+  Dropdown:    w-[180px] (desktop: sm:w-[200px])
+  Toggle:      p-0.5 (desktop: sm:p-1)
+
+================================================================================
+9. PPL COMPARISON CHART (Gross PPL and PPL after O/H)
+================================================================================
+File: PPLComparisonChart.jsx
+
+CHART HEIGHT:
+  Mobile:      300px (desktop: 340px)
+
+CHART MARGINS:
+  Mobile:      { top: 8, right: 4, left: 0, bottom: 46 }
+  Desktop:     { top: 12, right: 12, left: 16, bottom: 24 }
+
+X-AXIS:
+  Font size:   9px (desktop: ~11px)
+  Angle:       -45° (desktop: -35°)
+  Height:      46px (desktop: 50px)
+  Min tick gap:0 (desktop: 4)
+
+Y-AXIS:
+  Width:       40px (desktop: 56px)
+  Tick font:   10px (desktop: ~12px)
+  Tick count:  5 (desktop: 6)
+  Format:      ${value.toFixed(1)}p (desktop: .toFixed(2)p)
+
+LEGEND:
+  Padding top: 4px (desktop: 10px)
+  Gap:         4px 10px (desktop: 16px)
+  Font size:   10px (desktop: ~13px)
+
+TOOLTIP:
+  Padding:     8px 10px (desktop: 12px 14px)
+  Min width:   130px (desktop: 180px)
+  Title font:  ~11px (desktop: ~16px)
+  Body font:   ~10px (desktop: ~15px)
+
+================================================================================
+10. OVERHEAD TRENDS CHART
+================================================================================
+File: OverheadTrendsChart.jsx
+
+CHART OUTER HEIGHT:
+  Mobile:      320px (desktop: 350px)
+
+CHART MARGINS:
+  Mobile:      { top: 8, right: 8, left: 0, bottom: 20 }
+  Desktop:     { top: 10, right: 20, left: 40, bottom: 20 }
+
+Y-AXIS LABEL COLUMN (mobile only):
+  Width:       18px
+  Font size:   10px
+  Rotation:    -90°
+  Color:       text-foreground (strong contrast)
+  Padding:     2px right
+  (desktop: no separate column — label inside Y-axis)
+
+X-AXIS:
+  Font size:   9px (desktop: ~11px)
+  Angle:       -45° (desktop: 0°)
+  Height:      46px (desktop: 28px)
+  Text anchor: "end" (desktop: "middle")
+
+Y-AXIS:
+  Width:       44px (desktop: 76px)
+  Tick font:   10px (desktop: ~12px)
+  Label:       NONE on mobile (uses separate column)
+  (desktop: angle -90, position "left", offset 6, dx -6)
+
+AREA STROKE:
+  Mobile:      1px (desktop: 1.5px)
+
+LEGEND (external div, above chart):
+  Gap:         gap-x-3 gap-y-1 (desktop: gap-x-4 gap-y-1.5)
+  Dot size:    8px (desktop: 10px)
+  Font:        text-xs (desktop: text-sm)
+
+MOBILE TOOLTIP (below chart, full-width):
+  Position:    below chart, above summary cards
+  Layout:      single column, full-width
+  Background:  hsl(222, 47%, 11%)
+  Border:      1px solid hsl(217, 33%, 20%)
+  Radius:      10px
+  Padding:     10px 12px
+  Margin bottom: 8px
+  Row font:    10px
+  Grid:        single column (desktop: 2-col grid when > 6 categories)
+  Label:       full text (no truncation on mobile)
+  (desktop: follows cursor, maxWidth 420px, 2-col grid, labels truncated 17 chars)
+
+================================================================================
+11. SITE ROI TREND CHART
+================================================================================
+File: LatestPetrol.jsx (inline)
+
+CHART HEIGHT:
+  Mobile:      320px (desktop: 320px — same)
+
+CHART MARGINS:
+  Mobile:      { top: 4, left: 14, right: 18, bottom: 52 }
+  Desktop:     { top: 6, left: 48, right: 32, bottom: 36 }
+
+LEFT Y-AXIS (EBITDA £):
+  Width:       narrowed for mobile (variable roiTrendGbpAxisW)
+  Tick font:   ~10px (roiTrendTickY)
+  Label:       position "insideLeft", offset 0, dx -48, dy 28, fontSize 9,
+               textAnchor "middle"
+               (sits at outer left edge, clear of tick numbers)
+  (desktop: position "left", offset 6, dx -6, fontSize 12)
+
+RIGHT Y-AXIS (ROI %):
+  Width:       narrowed for mobile (variable roiTrendPctAxisW)
+  Tick font:   ~10px
+  Label:       position "insideRight", offset 0, dx 38, dy -18, fontSize 9,
+               textAnchor "middle"
+               (sits at outer right edge, clear of tick numbers)
+  (desktop: position "right", offset 8, dx 6, fontSize 12)
+
+X-AXIS:
+  Font size:   9px (desktop: ~10px roiTrendTickX)
+  Angle:       -45° (desktop: -32°)
+  Height:      46px (desktop: 42px)
+  Formatter:   formatMonthAxisTick — "Jan 25"
+
+LINE STYLING:
+  Stroke:      1.75px (desktop: 2px)
+  Dot radius:  2.5 (desktop: 3)
+  Active dot:  4 (desktop: 5)
+
+LEGEND:
+  Padding top: 4px (desktop: 10px)
+  Font size:   10px
+  Gap:         0.25rem 0.5rem
+  Icon size:   8px
+
+MOBILE TOOLTIP (above chart):
+  Position:    absolute top: -48, right: 8 (in CardContent header area)
+  Visibility:  sm:hidden (mobile only)
+  Background:  hsl(222, 47%, 11%)
+  Border:      1px solid hsl(217, 33%, 20%)
+  Radius:      8px
+  Padding:     5px 8px
+  Max width:   70%
+  White space: nowrap
+  Font size:   9px (both title and values)
+  Layout:      horizontal EBITDA/ROI rows (compact, no Investment/Net lines)
+  (desktop: follows cursor, full tooltip with all metrics)
+
+================================================================================
+12. METRICS COMPARISON (Plotly Bar Chart)
+================================================================================
+File: MetricsComparison.jsx
+
+CHART CONTAINER HEIGHT:
+  Mobile:      440px (desktop: 500px, tablet: 420px)
+
+PLOTLY MARGINS:
+  Mobile:      { t: 16, r: 8, b: 90, l: 44 }
+  Desktop:     { t: 40, r: 20, b: 100, l: 60 }
+
+X-AXIS:
+  Title:       '' empty (desktop: 'Sites')
+  Tick angle:  -55° (desktop: -45°)
+  Tick font:   9px (desktop: 10px)
+  Auto margin: true
+
+Y-AXIS:
+  Title:       '' empty (desktop: 'Value')
+  Tick font:   9px (desktop: 11px)
+
+HOVER LABEL:
+  Font size:   12px (desktop: 14px)
+
+CHART TITLE:
+  Mobile:      hidden (false)
+  (desktop: 'Metrics Comparison Across All Sites' at 18px)
+
+================================================================================
+13. SITE COMPARISON — BAR CHART
+================================================================================
+File: ComparisonBarChart.jsx
+
+MAIN CHART:
+  Container height: 320px (desktop: 420px)
+  Inner height:     220px (desktop: 350px)
+  Margins:          { top: 5, right: 4, left: 0, bottom: 16 }
+  (desktop: { top: 5, right: 10, left: 10, bottom: 28 })
+
+Y-AXIS:
+  Width:       40px (desktop: 56px)
+  Tick font:   9px (desktop: 11px)
+
+X-AXIS:
+  Font size:   9px (desktop: 11px)
+  Min tick gap:8px (desktop: 0)
+
+LEGEND:
+  Padding top: 6px (desktop: 15px)
+  Icon size:   8px (desktop: 12px)
+  Font size:   10px (desktop: 13px)
+
+MINI CHARTS (PPL & Labour):
+  Grid:        grid-cols-1 (stacked, desktop: sm:grid-cols-2 side-by-side)
+  Height:      200px (desktop: 320px)
+  Margins:     { top: 5, right: 4, left: 0, bottom: 24 }
+  Y-axis:      36px width, 9px font
+  (desktop: 56px width, 11px font, bottom: 40-52px)
+
+================================================================================
+14. SITE COMPARISON — PIE CHARTS
+================================================================================
+File: ComparisonPieCharts.jsx
+
+TOOLTIP RESERVE:
+  Mobile:      44px (desktop: 68px)
+  (freed 24px dead space under arc on mobile)
+
+CHART CONTAINER:
+  Mobile:      w-[min(240px,100%)] h-[min(240px,calc(100vw-48px))]
+  (desktop: sm:h-[min(268px,calc(100vw-48px))])
+
+CHART LAYOUT PADDING:
+  { left: 6, right: 6, top: 4, bottom: 44 (mobile) / 68 (desktop) }
+
+LEGEND (SalesMixLegend):
+  Container:   rounded-lg border border-border/50 bg-muted/15
+               px-2.5 py-2 (desktop: sm:px-3 sm:py-2.5)
+  Dot size:    h-2 w-2 (desktop: sm:h-2.5 sm:w-2.5)
+  Label font:  text-xs (desktop: sm:text-sm)
+  Spacing:     space-y-2 (desktop: sm:space-y-3)
+
+================================================================================
+15. SITE COMPARISON — METRICS CARDS
+================================================================================
+File: ComparisonMetrics.jsx
+
+LABEL MOBILE OVERRIDE:
+  "Labour Cost as % of fuel sales" → "Labour Cost %" on mobile
+  Implementation: sm:hidden / hidden sm:inline spans
+
+================================================================================
+16. SITE COMPARISON — PHOTO GALLERY
+================================================================================
+File: SitePhotoGallery.jsx
+
+HEADER:
+  Mobile:      mb-3, title text-base
+  (desktop: sm:mb-4, title sm:text-lg)
+
+PHOTOS:
+  Real site photo: /sites/site-{siteId}.jpg
+  Carousel controls hidden when single image (slides.length === 1)
+
+================================================================================
+17. BUNKERED SALES CHART
+================================================================================
+File: BunkeredSalesChart.jsx
+
+CONTAINER:
+  Mobile:      chart-card h-[320px]
+  (desktop: sm:h-[360px] lg:h-[380px])
+
+CHART HEIGHT:
+  Mobile:      h-[calc(100%-80px)] (~240px)
+  (desktop: sm:h-[85%] — ~306px)
+
+CHART MARGINS:
+  { top: 5, right: 5, left: -10, bottom: 5 } (same both)
+
+Y-AXIS:
+  Width:       50px (desktop: 54px)
+
+================================================================================
+18. DATE-WISE CHART
+================================================================================
+File: DateWiseChart.jsx
+
+CONTAINER:
+  Mobile:      chart-card h-[320px]
+  (desktop: sm:h-[360px] lg:h-[380px])
+
+HEADER:
+  Mobile:      flex-col gap-2 mb-3
+  (desktop: sm:flex-row sm:gap-0 sm:mb-4)
+
+MONTH FILTER:
+  Mobile:      w-full h-9 text-sm
+  (desktop: sm:w-44 sm:h-10 sm:text-base)
+
+CHART HEIGHT:
+  Mobile:      h-[calc(100%-80px)] (~240px)
+  (desktop: sm:h-[85%])
+
+Y-AXIS:
+  Width:       50px (desktop: 54px)
+
+================================================================================
+19. BREAKDOWN MODAL STYLING
+================================================================================
+
+MODAL CONTAINER (CardDetailModal):
+  Max height:  90vh scrollable body
+  Max width:   varies per modal (max-w-sm, max-w-md)
+
+ROW LAYOUT (3-column grid):
+  grid-cols-[minmax(0,1fr)_auto_3.5rem] gap-x-2 items-center
+
+NORMAL ROW:
+  py-2 text-sm border-b border-border/60
+  Name:    text-foreground truncate pr-1
+  Value:   tabular-nums text-right font-medium text-foreground
+  %:       tabular-nums text-right text-muted-foreground
+
+TOTAL ROW:
+  border-primary/25 bg-primary/5 -mx-1 px-1.5 rounded-md border-b-0
+  Name:    font-semibold text-foreground
+  Value:   font-semibold text-foreground
+  %:       text-muted-foreground
+
+SECTION HEADER:
+  text-[10px] font-semibold uppercase tracking-wide text-muted-foreground
+  pt-2 pb-1
+
+SUB-SECTION (indented):
+  pl-2 border-l-2 border-emerald-500/35 mb-3
+
+COLUMN HEADER:
+  grid same 3-col layout
+  text-[10px] font-semibold uppercase tracking-wide text-muted-foreground
+  border-b border-border pb-1 mb-1
+
+================================================================================
+20. DASHBOARD SHELL — MOBILE LAYOUT
+================================================================================
+File: LatestPetrol.jsx
+
+OUTER WRAPPER:
+  Mobile:      mx-2 mt-2 mb-3 gap-2 flex flex-col
+  (desktop: sm:mx-3 sm:mt-3 sm:gap-3 lg:mx-5 lg:mt-4 lg:gap-3 lg:mb-6)
+
+SIDEBAR MARGIN:
+  Mobile:      ml-0 (always — sidebar is overlay)
+  (desktop: lg:ml-64 when sidebar open, lg:ml-0 when closed)
+
+MAIN STAGE CARD:
+  Mobile:      rounded-xl (border-radius 1rem)
+  (desktop: @media(min-width:640px) → border-radius 1.5rem)
+  Surface:     bg hsl(card/0.97), blur 16px, border glass/0.22
+
+STAGE INNER PADDING:
+  Mobile:      p-3
+  (desktop: sm:p-4 lg:p-8)
+
+PAGE TITLE:
+  "Welcome" span:
+    Mobile:    text-xl font-bold uppercase
+    (desktop: sm:text-2xl lg:text-3xl)
+  H1 heading:
+    Mobile:    text-lg
+    (desktop: sm:text-xl lg:text-2xl sm:truncate)
+
+SECTION HEADINGS:
+  Mobile:      text-sm font-semibold px-3
+  (desktop: sm:text-base sm:px-4 lg:text-lg)
+
+KPI GRIDS:
+  Mobile:      grid-cols-1 gap-3
+  (desktop: sm:grid-cols-2 lg:grid-cols-3 sm:gap-4)
+
+CHART GRIDS:
+  Mobile:      grid-cols-1 gap-4
+  (desktop: lg:grid-cols-2)
+
+================================================================================
+21. TYPOGRAPHY UTILITIES (index.css — mobile-first)
+================================================================================
+
+Class                    | Mobile (base)        | Desktop (sm+)
+-------------------------|----------------------|------------------
+.dash-section-title      | text-base font-bold  | sm:text-lg lg:text-xl
+.dash-card-title         | text-sm font-semibold| sm:text-base
+.dash-card-label         | text-xs font-medium  | sm:text-sm
+.dash-card-value         | text-2xl font-bold   | sm:text-[2rem]
+.dash-card-subtext       | text-sm              | sm:text-base
+.dash-chart-heading      | text-lg font-bold    | sm:text-xl
+.dash-chart-subtitle     | text-sm              | sm:text-base
+.dash-table-head         | text-xs font-semibold| sm:text-sm
+.dash-table-cell         | text-sm              | sm:text-base
+
+All use text-foreground or text-muted-foreground for color.
+
+================================================================================
+22. CHART TYPOGRAPHY (dashboardChartTypography.js)
+================================================================================
+
+Function                    | Mobile (!sm) | Desktop (sm+)
+----------------------------|--------------|------------------
+dashTickPrimary             | 13px         | 15px
+dashXAxisTickSizePrimary    | 12px         | 15px
+dashTickSecondary           | 12px         | 14px
+dashAxisLabel               | 12px         | 14px
+dashTooltipTitlePx          | 14px         | 16px
+dashTooltipBodyPx           | 13px         | 15px
+dashLegendFontPx            | 13px         | 15px
+dashLegendIconSize          | 10px         | 11px
+
+Note: Most charts override these with even smaller mobile values
+(9–11px) for better fit. The above are default/fallback values.
+
+================================================================================
+23. GLOBAL MOBILE RULES
+================================================================================
+
+OVERFLOW:
+  All chart containers: overflow-x-hidden w-full on mobile
+  No horizontal scroll on any chart.
+
+X-AXIS PATTERN (all charts):
+  Angle:       -45°
+  Text anchor: "end"
+  Height:      46–52px
+  Font:        9–10px
+  Min tick gap:0
+  Formatter:   "Jan 25" (shortened month)
+
+Y-AXIS PATTERN (all charts):
+  Width:       36–52px (varies per chart)
+  Font:        9–11px
+  Labels:      insideLeft/insideRight with small dx offsets
+               or external column (Overhead Trends)
+
+BAR SIZING (all bar charts):
+  Mobile:      11–16px bars, 3–4px gap
+  Desktop:     28–30px bars, 5–8px gap
+
+TOOLTIP PATTERN:
+  Mobile:      absolute positioned (top/right corner or below chart)
+               never overlaps chart data
+  Desktop:     follows cursor
+
+LEGEND PATTERN:
+  Mobile:      8–11px font, 8–9px icons, tight gaps
+  Desktop:     13–15px font, 10–12px icons, comfortable gaps
+
+================================================================================
+END OF mobile.txt
+================================================================================

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { COFFEE_VALET_REVENUE_LABEL } from "@/constants/revenueLabels";
 
 export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, loading }) => {
   const [animationProgress, setAnimationProgress] = useState(0);
@@ -100,16 +100,6 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
     );
   }
 
-  // Percentage difference: "how much is val1 vs val2" as (val1 - val2) / val2 * 100.
-  // For the badge next to Site 2 we pass (site2, site1) so we get "Site 2 vs Site 1".
-  const calculateDifference = (val1, val2) => {
-    if (val1 == null && val2 == null) return { percentage: 0, isPositive: null };
-    if (val1 == null || val1 === 0) return { percentage: val2 ? 100 : 0, isPositive: !!val2 };
-    if (val2 == null || val2 === 0) return { percentage: val1 ? 100 : 0, isPositive: val1 > 0 };
-    const diff = ((val1 - val2) / val2) * 100;
-    return { percentage: Math.abs(diff), isPositive: diff > 0 };
-  };
-
   // Use absolute values so all metrics display as positive (no negative numbers)
   const toPos = (v) => Math.abs(parseFloat(v) || 0);
   const profit1 = toPos(site1Data.profit);
@@ -118,13 +108,18 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
   const netSales2 = toPos(site2Data.netSales);
   const vol1 = toPos(site1Data.totalFuelVolume);
   const vol2 = toPos(site2Data.totalFuelVolume);
-  // Prefer Actual PPL (after overheads) when available, else Avg PPL
+  const hasVol1 = vol1 > 0;
+  const hasVol2 = vol2 > 0;
+  const hasAnyFuelVolume = hasVol1 || hasVol2;
+  const volumeDiffAbs = Math.abs(vol1 - vol2);
+  const margin1 = toPos(site1Data.grossMarginPct);
+  const margin2 = toPos(site2Data.grossMarginPct);
+  const isMarginMode = !hasVol1 && !hasVol2;
+  // Prefer PPL after O/H when available, else Gross PPL (avgPPL)
   const actualPPL1 = toPos(site1Data.pplAfterOverheads ?? site1Data.avgPPL);
   const actualPPL2 = toPos(site2Data.pplAfterOverheads ?? site2Data.avgPPL);
-  const basket1 = toPos(site1Data.basketSize);
-  const basket2 = toPos(site2Data.basketSize);
-  const cust1 = Math.abs(parseInt(site1Data.customerCount, 10) || 0);
-  const cust2 = Math.abs(parseInt(site2Data.customerCount, 10) || 0);
+  const labourPct1 = toPos(site1Data.labourCostPercent);
+  const labourPct2 = toPos(site2Data.labourCostPercent);
 
   // Comparison metrics to display
   const metrics = [
@@ -135,7 +130,8 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
       formatter: formatCurrency,
     },
     {
-      label: "Profit",
+      label: "Gross Profit",
+      labelTitle: `Fuel + shop + ${COFFEE_VALET_REVENUE_LABEL} (combined)`,
       site1Value: profit1,
       site2Value: profit2,
       formatter: formatCurrency,
@@ -147,93 +143,81 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
       formatter: formatVolume,
     },
     {
-      label: "Actual PPL",
-      site1Value: actualPPL1,
-      site2Value: actualPPL2,
-      formatter: (val) => `${val?.toFixed(2) || '0.00'} p`,
+      label: isMarginMode ? "Fuel Margin" : "PPL after O/H",
+      site1Value: hasVol1 ? actualPPL1 : margin1,
+      site2Value: hasVol2 ? actualPPL2 : margin2,
+      formatter: (val, valueSiteName) => {
+        const hasVolume = valueSiteName === site1Name ? hasVol1 : hasVol2;
+        return hasVolume
+          ? `${val?.toFixed(2) || '0.00'} p`
+          : `${(val ?? 0).toFixed(2)}%`;
+      },
     },
     {
-      label: "Customer Count",
-      site1Value: cust1,
-      site2Value: cust2,
-      formatter: (val) => val?.toLocaleString() || '0',
-    },
-    {
-      label: "Basket Size",
-      site1Value: basket1,
-      site2Value: basket2,
-      formatter: formatCurrency,
+      label: "Labour Cost as % of fuel sales",
+      labelMobile: "Labour Cost %",
+      site1Value: labourPct1,
+      site2Value: labourPct2,
+      formatter: (val) => `${(val ?? 0).toFixed(1)}%`,
     },
   ];
 
   return (
     <div ref={metricsRef} className="chart-card animate-slide-up">
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-foreground mb-1">Performance Comparison</h3>
+      <div className="mb-3 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1">Performance Comparison</h3>
         <p className="text-xs text-muted-foreground">Side-by-side comparison of key metrics</p>
       </div>
 
-      <div className="space-y-4">
+      {/* Column header row — visible on all screens */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 px-2 sm:px-4 mb-1">
+        <div />
+        <div className="text-center">
+          <p className="text-[10px] sm:text-xs font-semibold text-primary truncate">{site1Name}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px] sm:text-xs font-semibold text-emerald-500 truncate">{site2Name}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2 sm:space-y-4">
         {metrics.map((metric, index) => {
-          // Badge next to Site 2: show "Site 2 vs Site 1" so green = Site 2 higher, red = Site 2 lower
-          const diff = calculateDifference(metric.site2Value, metric.site1Value);
-          
           // Animate values
           const animatedSite1Value = (metric.site1Value || 0) * animationProgress;
           const animatedSite2Value = (metric.site2Value || 0) * animationProgress;
-          const animatedDiff = calculateDifference(animatedSite2Value, animatedSite1Value);
-          
+
           return (
             <div
               key={index}
-              className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors"
+              className="grid grid-cols-3 gap-2 sm:gap-4 p-2.5 sm:p-4 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors items-center"
             >
               {/* Metric Label */}
               <div className="flex items-center">
-                <span className="text-sm font-medium text-foreground">{metric.label}</span>
+                <span
+                  className="text-[11px] sm:text-sm font-medium text-foreground leading-tight"
+                  title={metric.labelTitle || metric.label}
+                >
+                  <span className="sm:hidden">{metric.labelMobile || metric.label}</span>
+                  <span className="hidden sm:inline">{metric.label}</span>
+                </span>
               </div>
 
               {/* Site 1 Value */}
               <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-1">{site1Name}</p>
-                <p className="text-lg font-semibold text-foreground">
-                  {hasAnimated && animationProgress < 1 
-                    ? metric.formatter(animatedSite1Value)
-                    : metric.formatter(metric.site1Value)}
+                <p className="text-xs sm:text-lg font-semibold text-foreground">
+                  {hasAnimated && animationProgress < 1
+                    ? metric.formatter(animatedSite1Value, site1Name)
+                    : metric.formatter(metric.site1Value, site1Name)}
                 </p>
               </div>
 
-              {/* Site 2 Value with Comparison */}
+              {/* Site 2 Value */}
               <div className="text-center">
-                <p className="text-xs text-muted-foreground mb-1">{site2Name}</p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-lg font-semibold text-foreground">
-                    {hasAnimated && animationProgress < 1 
-                      ? metric.formatter(animatedSite2Value)
-                      : metric.formatter(metric.site2Value)}
-                  </p>
-                  {animatedDiff.percentage > 0 && (
-                    <div className={cn(
-                      "flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium",
-                      animatedDiff.isPositive
-                        ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                        : "bg-red-500/10 text-red-600 dark:text-red-400"
-                    )}>
-                      {animatedDiff.isPositive ? (
-                        <TrendingUp className="w-3 h-3" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3" />
-                      )}
-                      <span>{animatedDiff.percentage.toFixed(1)}%</span>
-                    </div>
-                  )}
-                  {animatedDiff.percentage === 0 && (
-                    <div className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
-                      <Minus className="w-3 h-3" />
-                      <span>Same</span>
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs sm:text-lg font-semibold text-foreground">
+                  {hasAnimated && animationProgress < 1
+                    ? metric.formatter(animatedSite2Value, site2Name)
+                    : metric.formatter(metric.site2Value, site2Name)}
+                </p>
               </div>
             </div>
           );
@@ -241,25 +225,40 @@ export const ComparisonMetrics = ({ site1Data, site2Data, site1Name, site2Name, 
       </div>
 
       {/* Summary Card */}
-      <div className="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
-        <h4 className="text-sm font-semibold text-foreground mb-3">Comparison Summary</h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      <div className="mt-4 sm:mt-6 p-3 sm:p-4 rounded-lg bg-primary/5 border border-primary/20">
+        <h4 className="text-xs sm:text-sm font-semibold text-foreground mb-2 sm:mb-3">Comparison Summary</h4>
+        <div
+          className={cn(
+            "grid gap-3 sm:gap-4 text-sm",
+            hasAnyFuelVolume ? "grid-cols-3" : "grid-cols-2"
+          )}
+        >
           <div>
-            <p className="text-muted-foreground mb-1">Total Sales Difference</p>
-            <p className="font-semibold text-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Sales Diff.</p>
+            <p className="text-xs sm:text-sm font-semibold text-foreground">
               {hasAnimated && animationProgress < 1
                 ? formatCurrency(Math.abs((netSales1 - netSales2) * animationProgress))
                 : formatCurrency(Math.abs(netSales1 - netSales2))}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground mb-1">Profit Difference</p>
-            <p className="font-semibold text-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Profit Diff.</p>
+            <p className="text-xs sm:text-sm font-semibold text-foreground">
               {hasAnimated && animationProgress < 1
                 ? formatCurrency(Math.abs((profit1 - profit2) * animationProgress))
                 : formatCurrency(Math.abs(profit1 - profit2))}
             </p>
           </div>
+          {hasAnyFuelVolume && (
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Volume Diff.</p>
+              <p className="text-xs sm:text-sm font-semibold text-foreground">
+                {hasAnimated && animationProgress < 1
+                  ? formatVolume(volumeDiffAbs * animationProgress)
+                  : formatVolume(volumeDiffAbs)}
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

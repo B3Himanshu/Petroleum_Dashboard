@@ -55,7 +55,8 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
   const [yearDropdownOpen, setYearDropdownOpen] = useState(false);
 
   const currentYearNum = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 8 }, (_, i) => currentYearNum - 3 + i);
+  // Allow selecting any year from 25 years ago to 2 years ahead
+  const yearOptions = Array.from({ length: 28 }, (_, i) => currentYearNum - 25 + i);
 
   useEffect(() => {
     if (startDate && endDate) {
@@ -153,38 +154,38 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full justify-between h-9 px-3 border border-slate-800 bg-slate-900 text-slate-100 hover:border-slate-600 hover:bg-slate-800 transition-colors"
+              className="w-full justify-between h-9 px-3 border-border bg-background text-foreground hover:bg-muted hover:text-foreground shadow-sm"
             >
               <div className="flex items-center gap-2">
-                <CalendarIcon className="h-3.5 w-3.5 text-slate-300" />
-                <span className="text-xs font-medium">{displayText}</span>
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs sm:text-sm font-medium">{displayText}</span>
               </div>
-              <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </PopoverTrigger>
           
           <PopoverContent 
-            className="w-80 p-0 bg-slate-950 border border-slate-800 shadow-xl rounded-lg"
+            className="w-80 p-0 bg-popover text-popover-foreground border-border shadow-lg rounded-lg"
             align="start"
           >
-            <div className="bg-slate-950 rounded-lg overflow-hidden">
+            <div className="bg-popover rounded-lg overflow-hidden">
               {/* Header with year selection dropdown + navigation */}
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-800 bg-slate-900/50">
+              <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted/40">
                 <button
                   onClick={() => handleYearChange(-1)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition-colors"
+                  className="p-0.5 hover:bg-muted rounded transition-colors"
                   aria-label="Previous year"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5 text-slate-300" />
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setYearDropdownOpen((o) => !o)}
-                    className="flex items-center gap-0.5 px-2 py-1 rounded hover:bg-slate-800 transition-colors min-w-[4rem] justify-center"
+                    className="flex items-center gap-0.5 px-2 py-1 rounded hover:bg-muted transition-colors min-w-[4rem] justify-center"
                   >
-                    <span className="text-xs font-semibold text-slate-100">{currentYear}</span>
-                    <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${yearDropdownOpen ? 'rotate-180' : ''}`} />
+                    <span className="text-xs font-semibold text-foreground">{currentYear}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${yearDropdownOpen ? 'rotate-180' : ''}`} />
                   </button>
                   {yearDropdownOpen && (
                     <>
@@ -193,7 +194,7 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                         aria-hidden="true"
                         onClick={() => setYearDropdownOpen(false)}
                       />
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 py-1.5 w-24 max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-xl">
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 py-1.5 w-24 max-h-48 overflow-y-auto bg-popover border border-border rounded-lg shadow-lg">
                         {yearOptions.map((y) => (
                           <button
                             key={y}
@@ -203,7 +204,7 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                               setYearDropdownOpen(false);
                             }}
                             className={`block w-full text-center px-2 py-1.5 text-xs font-medium rounded mx-1 transition-colors ${
-                              y === currentYear ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-700'
+                              y === currentYear ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-muted'
                             }`}
                           >
                             {y}
@@ -215,10 +216,10 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                 </div>
                 <button
                   onClick={() => handleYearChange(1)}
-                  className="p-0.5 hover:bg-slate-800 rounded transition-colors"
+                  className="p-0.5 hover:bg-muted rounded transition-colors"
                   aria-label="Next year"
                 >
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </div>
 
@@ -235,18 +236,18 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                         onClick={() => handleSelectMonth(index)}
                         disabled={disabled}
                         className={`
-                          px-2.5 py-1.5 text-xs font-medium rounded transition-all relative
+                          px-2.5 py-1.5 text-xs font-medium rounded-md transition-all relative border
                           ${disabled
-                            ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed opacity-60'
+                            ? 'bg-muted/50 text-muted-foreground cursor-not-allowed opacity-60 border-transparent'
                             : selected
-                              ? 'bg-blue-600 text-white font-semibold shadow-md'
-                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                              ? 'bg-primary text-primary-foreground font-semibold shadow-sm border-primary'
+                              : 'bg-background text-foreground border-border hover:bg-muted'
                           }
                         `}
                       >
                         {month.slice(0, 3)}
                         {selected && !disabled && (
-                          <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-white rounded-full"></span>
+                          <span className="absolute -top-1.5 -right-1.5 w-2 h-2 bg-primary-foreground rounded-full ring-2 ring-primary" />
                         )}
                       </button>
                     );
@@ -255,15 +256,15 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
               </div>
 
               {/* Footer with Select all, Clear, Confirm */}
-              <div className="px-3 py-2 border-t border-slate-800 flex items-center justify-between bg-slate-950">
+              <div className="px-3 py-2 border-t border-border flex items-center justify-between bg-muted/30">
                 <div className="flex items-center gap-3">
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-muted-foreground">
                     {tempSelectedMonths.length} month{tempSelectedMonths.length !== 1 ? 's' : ''}
                   </div>
                   <button
                     type="button"
                     onClick={handleSelectAll}
-                    className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-medium"
+                    className="text-[10px] sm:text-xs text-primary hover:underline transition-colors font-medium"
                   >
                     Select all
                   </button>
@@ -271,7 +272,7 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                     <button
                       type="button"
                       onClick={handleClear}
-                      className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors font-medium"
+                      className="text-[10px] sm:text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
                     >
                       Clear
                     </button>
@@ -280,7 +281,8 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                 <Button
                   onClick={handleConfirm}
                   disabled={tempSelectedMonths.length === 0}
-                  className="h-7 px-3 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md shadow-sm transition-colors disabled:opacity-40 disabled:bg-slate-700 disabled:cursor-not-allowed"
+                  size="sm"
+                  className="h-7 px-3 text-xs font-semibold"
                 >
                   Confirm
                 </Button>
@@ -300,10 +302,11 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
               .map((m) => (
                 <div
                   key={`${m.year}-${m.month}`}
-                  className="flex items-center gap-1.5 px-2 py-1 bg-blue-600/20 border border-blue-500/40 rounded text-[11px] text-blue-300 font-medium"
+                  className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 border border-primary/25 rounded-md text-[11px] sm:text-xs text-foreground font-medium"
                 >
                   <span>{months[m.month].slice(0, 3)} '{m.year.toString().slice(-2)}</span>
                   <button
+                    type="button"
                     onClick={() => {
                       const newMonths = selectedMonths.filter(sel => !(sel.year === m.year && sel.month === m.month));
                       setSelectedMonths(newMonths);
@@ -319,7 +322,8 @@ export const DateRangePicker = ({ startDate, endDate, onDateChange, minDate }) =
                         onDateChange(format(firstDay, 'yyyy-MM-dd'), format(lastDay, 'yyyy-MM-dd'));
                       }
                     }}
-                    className="hover:text-blue-200 transition-colors"
+                    className="text-muted-foreground hover:text-foreground transition-colors leading-none"
+                    aria-label="Remove month"
                   >
                     ×
                   </button>

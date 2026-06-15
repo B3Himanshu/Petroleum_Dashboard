@@ -27,6 +27,11 @@ import { MarketingInitiativesTable } from "@/components/dashboard/MarketingIniti
 import { SalesDistributionChart } from "@/components/dashboard/SalesDistributionChart";
 import { CityMap } from "@/components/dashboard/CityMap";
 import { dashboardAPI } from "@/services/api";
+import {
+  COFFEE_VALET_REVENUE_LABEL,
+  COFFEE_VALET_PROFIT_LABEL,
+  matchesCoffeeValetRevenueName,
+} from "@/constants/revenueLabels";
 
 const Index = () => {
 
@@ -314,23 +319,27 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="relative flex min-h-screen min-w-0 flex-col bg-transparent">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
       {/* Main Dashboard */}
-      <div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <main 
           style={{ willChange: 'margin-left' }}
-          className={`transition-[margin-left] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
+          className={`flex flex-1 flex-col min-h-0 min-w-0 w-full max-w-full transition-[margin-left] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
         >
+        <div className="mx-2 mt-2 mb-3 flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:mx-3 sm:mt-3 sm:mb-4 sm:gap-3 lg:mx-5 lg:mt-4 lg:mb-6 lg:gap-3">
+        <div className="main-stage-header-card">
         <Header 
           sidebarOpen={sidebarOpen} 
           onToggleSidebar={toggleSidebar} 
           totalSales={totalSalesAllSites}
         />
+        </div>
         
-        <div className="p-3 sm:p-4 lg:p-6">
+        <div className="main-stage-card flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="box-border min-h-0 min-w-0 w-full max-w-full flex-1 px-0 py-3 sm:px-4 sm:py-4 lg:px-8 lg:py-8">
           {/* Page Title */}
           <div className="mb-3 sm:mb-4 lg:mb-6">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">Fuel Dashboard Report</h1>
@@ -408,10 +417,10 @@ const Index = () => {
                 onClick={() => setProfitModalOpen(true)}
               />
               <MetricCard
-                title="Avg PPL"
+                title="Gross PPL"
                 value={`${metrics.avgPPL?.toFixed(2) || '0.00'} p`}
                 rawValue={metrics.avgPPL}
-                subtitle="Profit Per liter"
+                subtitle="Per litre before O/H"
                 icon={BarChart}
                 iconBg="orange"
                 delay={150}
@@ -425,10 +434,10 @@ const Index = () => {
           {metrics ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-3 sm:mb-4 lg:mb-6">
               <MetricCard
-                title="Actual PPL"
+                title="PPL after O/H"
                 value={`${metrics.actualPPL != null ? Number(metrics.actualPPL).toFixed(2) : '0.00'} p`}
                 rawValue={metrics.actualPPL}
-                subtitle="Profit per liter (after overheads)"
+                subtitle="Per litre after overheads"
                 icon={Percent}
                 iconBg="yellow"
                 delay={200}
@@ -638,10 +647,10 @@ const Index = () => {
                   )} 
                 />
                 <DetailItem 
-                  label="Valet Sales" 
+                  label={COFFEE_VALET_REVENUE_LABEL}
                   value={formatCurrency(
-                    (Array.isArray(salesDistribution) && salesDistribution.find(d => d.name === 'Valet Sales')?.value != null)
-                      ? salesDistribution.find(d => d.name === 'Valet Sales').value
+                    (Array.isArray(salesDistribution) && salesDistribution.find(d => matchesCoffeeValetRevenueName(d.name))?.value != null)
+                      ? salesDistribution.find(d => matchesCoffeeValetRevenueName(d.name)).value
                       : (metrics.valetSales || 0)
                   )} 
                 />
@@ -679,7 +688,7 @@ const Index = () => {
                   subValue={`Sales: ${formatCurrency(metrics.shopSales || 0)} - Purchases: ${formatCurrency(metrics.shopPurchases || 0)}`}
                 />
                 <DetailItem 
-                  label="Valet Profit" 
+                  label={COFFEE_VALET_PROFIT_LABEL}
                   value={formatCurrency(metrics.valetProfit || 0)} 
                   subValue={`Sales: ${formatCurrency(metrics.valetSales || 0)} - Purchases: ${formatCurrency(metrics.valetPurchases || 0)}`}
                 />
@@ -698,6 +707,8 @@ const Index = () => {
               <DetailItem label="Loading..." value="Please wait" />
             )}
           </CardDetailModal>
+        </div>
+        </div>
         </div>
       </main>
       </div>

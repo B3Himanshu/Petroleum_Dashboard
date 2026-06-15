@@ -51,11 +51,46 @@ desktop.ini
 # Data / exports (may contain sensitive data)
 *.xlsx
 *.xls
+*.xlsm
+*.xlsb
+*.ods
 *.csv
+*.tsv
 *.sql
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.parquet
 ~$*.xlsx
 ~$*.xls
 backend/exports/
+backend/data/*.xlsx
+backend/data/*.csv
+
+# Secrets / keys / certificates — NEVER COMMIT
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.ppk
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+.npmrc
+.netrc
+secrets.json
+credentials.json
+service-account*.json
+*.secret
+*credentials*.json
+gha-creds-*.json
+
+# Vite build temp artifacts
+*.timestamp-*.mjs
 
 # Temporary
 *.tmp

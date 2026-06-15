@@ -1,0 +1,7 @@
+{
+  "watch": ["server.js", "routes", "config", "services", "middleware", "lib", "utils", "data"],
+  "ignore": ["node_modules", "test", "sitetest", "*.test.js", "export-*.js", "check-*.js", "duplicate.js", "readExcel.js", "read-excel.js"],
+  "ext": "js,mjs,cjs,json",
+  "delay": "300",
+  "env": {}
+}

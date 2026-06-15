@@ -1,0 +1,52 @@
+Dashboard Enhancement Changes – Reference for Other Dashboards
+================================================================
+
+
+1. Background & Visuals
+   - Changed dashboard background from dark/black to white/light.
+   - Set CSS root tokens to light mode (--background: light off-white).
+   - Applied light gradient backdrop (soft blue/purple gradients).
+   - Ensured all charts, tables, and KPI cards are readable on white background.
+
+
+2. Volume & Value Breakdown (% of Total)
+   - Added "% of total" column next to volume and value in fuel grade breakdown tables.
+   - Volume table: Grade Name | Volume | % of total fuel volume.
+   - Profit table: Grade Name | Value | % of total fuel sales.
+   - Tooltip shows: "X% of total fuel volume" / "X% of total fuel sales".
+
+
+3. PPL Wording Update
+   - Renamed PPL KPI cards:
+     * Card 1: "Gross PPL" (subtitle: "Per litre before O/H")
+     * Card 2: "PPL after O/H" (subtitle: "Net per litre after O/H")
+   - Updated chart legends to match: "Gross PPL" and "PPL after O/H".
+   - Mobile label shortened to "After O/H" for space.
+
+
+4. Gross Profit Display
+   - Main KPI card shows only gross profit (no revenue/cost on the card face).
+   - Added percentage alongside profit figure.
+   - NOTE: Breakdown modal still needs work — currently shows Sales & Cost columns.
+     Target: show only profit per category with % of total profit.
+
+
+5. Fuel Grade Pie Charts (Side by Side)
+   - Removed the navigation button that toggled between volume and profit pie charts.
+   - Both pie charts now display side by side in a single card.
+   - Layout: stacked on mobile (1 column), side by side on desktop (2 columns).
+   - Left: Volume pie chart + table. Right: Profit pie chart + table.
+
+
+6. PPL vs Actual Chart Title & Labels
+   - Changed chart title from "PPL vs Actual PPL vending out OH" to use:
+     * "Gross PPL" (was "PPL" / "Avg PPL")
+     * "PPL after O/H" (was "Actual PPL")
+   - Updated all legend labels and axis references to match.
+
+
+7. Site Photos (Google Maps Integration)
+   - Added Google Maps embed in site comparison cards.
+   - Defined site coordinates (lat/lng) in a constants file.
+   - Fallback chain: Local photo -> Google Maps embed -> MapPin icon placeholder.
+   - NOTE: Currently shows map view, not Street View photos. Full photo gallery still pending.

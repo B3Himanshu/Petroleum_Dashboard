@@ -1,0 +1,53 @@
+---
+description: Mobile responsiveness rule — never touch desktop layout while fixing mobile
+alwaysApply: true
+---
+
+# Mobile Responsive — Desktop Freeze Rule
+
+## Current Task Scope
+
+We are **only fixing mobile responsiveness** for the HSRL dashboard.
+The desktop view is **complete, approved, and must not change**.
+
+## Hard Rules
+
+1. **Never modify desktop layout classes** — any class that applies at `md:`, `lg:`, `xl:`, or `2xl:` breakpoints must be left exactly as-is.
+2. **Only add or change classes at `sm:` and below** (default/base styles, `sm:` prefix).
+3. **Do not restructure JSX** in a way that affects desktop rendering — only wrap, conditionally show, or reorder elements for mobile using `block sm:hidden` / `hidden sm:block` patterns.
+4. **Do not touch grid columns, flex layouts, padding, margin, font sizes, or widths** that are expressed at `md:` or larger — these are desktop-only and are frozen.
+5. **Do not change any component's props, state, or data-fetching logic** while fixing mobile — layout only.
+
+## What You Can Touch
+
+- Base (no prefix) Tailwind classes **only when they don't affect desktop** (i.e. overridden at `md:` or higher).
+- Add new `sm:`-prefixed classes.
+- Add mobile-only wrapper divs / flex containers that collapse at `md:`.
+- Adjust `overflow`, `truncate`, `text-xs`, `px-2`, `py-1` etc. at base/`sm:` level.
+
+## Pattern to Follow
+
+```jsx
+// GOOD — base style for mobile, md: restores desktop
+<div className="flex flex-col gap-2 md:flex-row md:gap-4">
+
+// GOOD — show only on mobile
+<div className="block md:hidden">...</div>
+
+// GOOD — show only on desktop (unchanged)
+<div className="hidden md:block">...</div>
+
+// BAD — changing a desktop breakpoint class
+<div className="md:grid-cols-3">  ← DO NOT TOUCH if it was md:grid-cols-4
+```
+
+## Verification Checklist (before saving)
+
+- [ ] Desktop (≥768px) renders identically to before the change
+- [ ] No `md:`, `lg:`, `xl:`, `2xl:` classes were added, removed, or modified
+- [ ] No JSX structure changes that could reorder desktop elements
+- [ ] No prop/state/logic changes
+
+## Scope
+
+This rule applies to all files under `frontend/src/` for the duration of the mobile responsiveness work.

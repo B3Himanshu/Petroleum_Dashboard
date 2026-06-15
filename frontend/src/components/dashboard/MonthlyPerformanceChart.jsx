@@ -13,7 +13,19 @@ import {
 } from "recharts";
 import { BarChart3, TrendingUp, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsSmUp } from "@/hooks/use-mobile";
+import {
+  dashTickSecondary,
+  dashLegendItemClass,
+  dashCartesianGridProps,
+  dashXAxisIntervalDenseMonths,
+  dashXAxisTickSizePrimary,
+} from "@/lib/dashboardChartTypography";
 import { dashboardAPI } from "@/services/api";
+import {
+  COFFEE_VALET_REVENUE_LABEL,
+  matchesCoffeeValetRevenueName,
+} from "@/constants/revenueLabels";
 
 // Unified Custom Tooltip component for both bar and line charts
 // This will be created inside the component to access filteredData and selectedMetrics
@@ -63,7 +75,7 @@ const createCustomTooltip = (chartData, selectedMetrics) => {
     const categoryLabels = {
       fuel: "fuel",
       shop: "shop",
-      valet: "valet"
+      valet: COFFEE_VALET_REVENUE_LABEL
     };
 
     // Get the data point - for stacked bars, all entries share the same payload object
@@ -124,7 +136,7 @@ const createCustomTooltip = (chartData, selectedMetrics) => {
     };
     
     const metricColors = {
-      'Sales': '#3b82f6', // Blue
+      'Sales': 'hsl(var(--chart-blue))', // Blue
       'Profit': '#10b981', // Green
       'Sale Volume': '#f59e0b', // Orange
       'PPL': '#8b5cf6' // Purple
@@ -173,22 +185,22 @@ const createCustomTooltip = (chartData, selectedMetrics) => {
         }}
       >
         <p 
-          className="font-semibold text-sm mb-2"
+          className="font-semibold text-base sm:text-lg mb-2"
           style={{ color: "#ffffff" }}
         >
           {displayLabel}
         </p>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {metricValues.map(({ metric, value }) => (
-            <div key={metric} className="flex items-center">
+            <div key={metric} className="flex items-center flex-wrap gap-x-1">
               <span 
-                className="text-sm font-medium"
+                className="text-sm sm:text-base font-medium"
                 style={{ color: metricColors[metric] || "#8884d8" }}
               >
                 {metric}: 
               </span>
               <span 
-                className="text-sm ml-1"
+                className="text-sm sm:text-base ml-0.5 font-medium"
                 style={{ color: "#ffffff" }}
               >
                 {metric === 'Sale Volume' 
@@ -211,6 +223,8 @@ const createCustomTooltip = (chartData, selectedMetrics) => {
 };
 
 const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }) => {
+  const smUp = useIsSmUp();
+  const tickY = dashTickSecondary(smUp);
   // JSX version: no TypeScript generic on useState
   const [viewType, setViewType] = useState("bar");
   const [selectedMetrics, setSelectedMetrics] = useState(["Sales", "Profit", "Sale Volume", "PPL"]); // Array of selected metrics - all 4 selected by default
@@ -221,7 +235,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
   
   // Available metrics
   const availableMetrics = [
-    { value: "Sales", label: "Sales", color: "#3b82f6" },
+    { value: "Sales", label: "Sales", color: "hsl(var(--chart-blue))" },
     { value: "Profit", label: "Profit", color: "#10b981" },
     { value: "Sale Volume", label: "Sale Volume", color: "#f59e0b" },
     { value: "PPL", label: "PPL", color: "#8b5cf6" }
@@ -286,7 +300,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
           const saleVolumeDataset = response.datasets.find(d => d.name === 'Sale Volume');
           const pplDataset = response.datasets.find(d => d.name === 'PPL');
           const shopSalesDataset = response.datasets.find(d => d.name === 'Shop Sales');
-          const valetSalesDataset = response.datasets.find(d => d.name === 'Valet Sales');
+          const valetSalesDataset = response.datasets.find(d => matchesCoffeeValetRevenueName(d.name));
           
           // Ensure we always have exactly 12 months in order
           const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -425,6 +439,9 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
   });
   
   filteredData = completeData;
+
+  const monthAxisInterval = dashXAxisIntervalDenseMonths(smUp, filteredData.length);
+  const tickX = dashXAxisTickSizePrimary(smUp);
   
   // Create tooltip component with memoization
   const tooltipComponent = useMemo(() => createCustomTooltip(filteredData, activeMetrics), [filteredData, activeMetrics]);
@@ -469,8 +486,8 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-foreground">Monthly Performance Trends</h3>
-            <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">Track your sales performance over time</p>
+            <h3 className="dash-chart-heading">Monthly Performance Trends</h3>
+            <p className="dash-chart-subtitle hidden sm:block">Track your sales performance over time</p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -478,7 +495,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setMetricsDropdownOpen(!metricsDropdownOpen)}
-              className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg border border-border bg-background text-foreground hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary min-w-[120px] sm:min-w-[150px] flex items-center justify-between gap-1 sm:gap-2"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 text-sm font-semibold rounded-lg border border-border bg-background text-foreground hover:bg-muted/50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary min-w-[120px] sm:min-w-[150px] flex items-center justify-between gap-1 sm:gap-2"
             >
               <span>
                 {selectedMetrics.length === 1 
@@ -494,7 +511,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             {metricsDropdownOpen && (
               <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-[180px] sm:w-[200px] bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
                 <div className="p-2 border-b border-border">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     Select Metrics
                   </span>
                 </div>
@@ -546,7 +563,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             <button
               onClick={() => setViewType("bar")}
               className={cn(
-                "px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all rounded-md flex items-center gap-1 sm:gap-2",
+                "px-2 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold transition-all rounded-md flex items-center gap-1 sm:gap-2",
                 viewType === "bar"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -558,7 +575,7 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             <button
               onClick={() => setViewType("line")}
               className={cn(
-                "px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-all rounded-md flex items-center gap-1 sm:gap-2",
+                "px-2 sm:px-4 py-1.5 sm:py-2 text-sm font-semibold transition-all rounded-md flex items-center gap-1 sm:gap-2",
                 viewType === "line"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -571,8 +588,8 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
         </div>
       </div>
 
-      <div className="w-full h-[320px] sm:h-[calc(100%-120px)] lg:h-[85%] overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-        <div className="min-w-[600px] sm:min-w-full">
+      <div className="w-full h-[320px] sm:h-[calc(100%-120px)] lg:h-[85%] overflow-x-hidden">
+        <div className="w-full min-w-0">
           <ResponsiveContainer width="100%" height="100%" minHeight={280}>
             {viewType === "bar" ? (
               <BarChart 
@@ -580,33 +597,28 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
                 margin={{ top: 10, right: 5, left: -5, bottom: 40 }}
                 barCategoryGap="10%"
               >
-              <CartesianGrid 
-                strokeDasharray="3 3" 
-                stroke="hsl(var(--border))" 
-                vertical={false}
-                opacity={0.3}
-              />
+              <CartesianGrid {...dashCartesianGridProps} />
               <XAxis 
                 dataKey="month" 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontWeight: 500 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickX, fontWeight: 600 }}
                 className="sm:text-xs lg:text-sm"
                 type="category"
                 allowDuplicatedCategory={false}
-                interval={0}
+                interval={monthAxisInterval}
                 angle={-45}
                 textAnchor="end"
-                height={50}
+                height={52}
                 tickFormatter={(value) => value}
                 minTickGap={0}
               />
             <YAxis 
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontWeight: 500 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickY, fontWeight: 600 }}
               className="sm:text-xs lg:text-sm"
-              width={30}
+              width={44}
               domain={[0, 'auto']}
               tickFormatter={(value) => {
                 // Use first selected metric for formatting (or default to Sales)
@@ -640,20 +652,20 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
                 backgroundColor: 'transparent',
                 border: 'none',
                 padding: 0,
-                fontSize: '11px',
+                fontSize: '14px',
               }}
             />
             <Legend 
-              wrapperStyle={{ paddingTop: "10px", fontSize: "10px" }}
+              wrapperStyle={{ paddingTop: "10px", fontSize: smUp ? "14px" : "10px" }}
               iconType="circle"
-              iconSize={10}
+              iconSize={smUp ? 12 : 10}
               formatter={(value) => (
-                <span className="text-xs sm:text-sm font-medium capitalize text-foreground">{value}</span>
+                <span className={dashLegendItemClass()}>{value}</span>
               )}
             />
             {activeMetrics.map((metric, index) => {
               const metricKey = metricKeyMap[metric] || 'sales';
-              const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+              const colors = ['hsl(var(--chart-blue))', '#10b981', '#f59e0b', '#8b5cf6'];
               const color = colors[index % colors.length];
               
               return (
@@ -674,32 +686,27 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             data={filteredData}
             margin={{ top: 10, right: 5, left: -5, bottom: 40 }}
           >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))" 
-              vertical={false}
-              opacity={0.3}
-            />
+            <CartesianGrid {...dashCartesianGridProps} />
             <XAxis 
               dataKey="month" 
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontWeight: 500 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickX, fontWeight: 600 }}
               className="sm:text-xs lg:text-sm"
               type="category"
-              interval={0}
+              interval={monthAxisInterval}
               angle={-45}
               textAnchor="end"
-              height={50}
+              height={52}
               tickFormatter={(value) => value}
               minTickGap={0}
             />
             <YAxis 
               axisLine={false} 
               tickLine={false}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8, fontWeight: 500 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickY, fontWeight: 600 }}
               className="sm:text-xs lg:text-sm"
-              width={30}
+              width={44}
               tickFormatter={(value) => {
                 // Use first selected metric for formatting (or default to Sales)
                 const primaryMetric = activeMetrics[0] || 'Sales';
@@ -719,18 +726,24 @@ const MonthlyPerformanceChartComponent = ({ siteId, year, years, month, months }
             />
             <Tooltip 
               content={tooltipComponent}
+              contentStyle={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                padding: 0,
+                fontSize: '14px',
+              }}
             />
             <Legend 
-              wrapperStyle={{ paddingTop: "10px", fontSize: "10px" }}
+              wrapperStyle={{ paddingTop: "10px", fontSize: smUp ? "14px" : "10px" }}
               iconType="circle"
-              iconSize={10}
+              iconSize={smUp ? 12 : 10}
               formatter={(value) => (
-                <span className="text-xs sm:text-sm font-medium capitalize text-foreground">{value}</span>
+                <span className={dashLegendItemClass()}>{value}</span>
               )}
             />
             {activeMetrics.map((metric, index) => {
               const metricKey = metricKeyMap[metric] || 'sales';
-              const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+              const colors = ['hsl(var(--chart-blue))', '#10b981', '#f59e0b', '#8b5cf6'];
               const color = colors[index % colors.length];
               
               return (

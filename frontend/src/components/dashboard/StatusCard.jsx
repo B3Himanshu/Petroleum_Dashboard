@@ -19,16 +19,16 @@ export const StatusCard = ({ title, value, status, delay = 0 }) => {
       className="metric-card animate-slide-up"
       style={{ animationDelay: `${delay}ms` }}
     >
-      <p className="text-sm text-muted-foreground font-medium mb-2">{title}</p>
+      <p className="text-sm sm:text-base text-muted-foreground font-semibold mb-2">{title}</p>
       {status ? (
         <div className="flex items-center gap-2">
           <span className={cn("w-2.5 h-2.5 rounded-full", statusDots[status])} />
-          <span className={cn("text-lg font-semibold", statusColors[status])}>
+          <span className={cn("text-xl sm:text-2xl font-bold", statusColors[status])}>
             {value}
           </span>
         </div>
       ) : (
-        <h3 className="text-2xl font-bold text-foreground">{value}</h3>
+        <h3 className="text-[1.75rem] sm:text-[2rem] font-bold text-foreground">{value}</h3>
       )}
     </div>
   );

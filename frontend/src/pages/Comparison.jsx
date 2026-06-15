@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { SiteComparison } from "@/components/comparison/SiteComparison";
-import { sitesAPI, dashboardAPI } from "@/services/api";
 import { GitCompare } from "lucide-react";
 
 const Comparison = () => {
@@ -12,7 +11,6 @@ const Comparison = () => {
     }
     return true;
   });
-  const [totalSalesAllSites, setTotalSalesAllSites] = useState(null);
 
   // Handle responsive sidebar on resize
   useEffect(() => {
@@ -30,47 +28,28 @@ const Comparison = () => {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Fetch total sales across all sites (all months, all years)
-  useEffect(() => {
-    const fetchTotalSales = async () => {
-      try {
-        // Get all sales data (no month/year filter) - shows grand total
-        console.log('📊 [Comparison] Fetching total sales across all sites (all data):');
-        
-        const totalSalesData = await dashboardAPI.getTotalSales(null, null);
-        setTotalSalesAllSites(totalSalesData?.totalSales || 0);
-        
-        console.log('✅ [Comparison] Total sales across all sites received:', {
-          totalSales: totalSalesData?.totalSales,
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('❌ [Comparison] Error fetching total sales:', error);
-        setTotalSalesAllSites(0);
-      }
-    };
-
-    fetchTotalSales();
-  }, []); // Only fetch once on mount
-
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="relative flex min-h-screen min-w-0 flex-col bg-transparent">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
       {/* Main Content */}
-      <div>
-        <main 
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <main
           style={{ willChange: 'margin-left' }}
-          className={`transition-[margin-left] duration-500 ease-in-out ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
+          className={`flex flex-1 flex-col min-h-0 min-w-0 transition-[margin-left] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
         >
-          <Header 
-            sidebarOpen={sidebarOpen} 
-            onToggleSidebar={toggleSidebar} 
-            totalSales={totalSalesAllSites}
-          />
+          <div className="mx-2 mt-2 mb-3 flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:mx-3 sm:mt-3 sm:mb-4 sm:gap-3 lg:mx-5 lg:mt-4 lg:mb-6 lg:gap-3">
+          <div className="main-stage-header-card">
+            <Header
+              sidebarOpen={sidebarOpen}
+              onToggleSidebar={toggleSidebar}
+              showTotalSales={false}
+            />
+          </div>
           
-          <div className="p-4 lg:p-6">
+          <div className="main-stage-card flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="box-border min-h-0 min-w-0 w-full max-w-full flex-1 px-0 py-4 sm:px-4 sm:py-5 lg:px-8 lg:py-8">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -84,6 +63,8 @@ const Comparison = () => {
 
             {/* Comparison Component */}
             <SiteComparison />
+          </div>
+          </div>
           </div>
         </main>
       </div>

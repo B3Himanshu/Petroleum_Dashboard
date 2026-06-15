@@ -176,7 +176,7 @@ GET /api/dashboard/charts/sales-distribution?siteId=6&month=11&year=2025
   "data": [
     { "name": "Fuel Sales", "value": 139861.64 },
     { "name": "Shop Sales", "value": 754.36 },
-    { "name": "Valet Sales", "value": 72.00 }
+    { "name": "Coffee & Valet", "value": 72.00 }
   ]
 }
 ```
@@ -206,71 +206,73 @@ Get status cards data
 
 **Note:** These fields are not in the current database schema and would need to be added or calculated from transaction/accounting data.
 
-## Formula Sheet & PRL Logic Bar Verification
+## Formula Sheet & Wireframe Verification
 
-The dashboard (Latest Petrol page) and petrol-data API follow the **Formula Sheet** (`frontend/public/formula.png`) and **PRL Logic Bar** nominal codes from `PRL Logic Bar csv.csv`. Petrol-data routes are implemented in `backend/routes/petrolDataSage.js` (mounted at `/api/dashboard/petrol-data`).
+The dashboard (Latest Petrol page) and petrol-data API follow the **Formula Sheet** (`frontend/public/formula.png`) and the **wireframe** nominal codes from **`wireframe.csv`** (project root). Do not use `HSRL_ui/PRL Logic Bar csv.csv`. Petrol-data routes are in `backend/routes/petrolDataSage.js` (mounted at `/api/dashboard/petrol-data`).
 
 ### 1. Avg. Basket Size
 - **Formula:** Total Shop Sales / Transactions
-- **PRL CSV:** "Not available on Sage" (shop not managed by client)
+- **Wireframe:** "Not available on Sage" (shop not managed by client)
 - **Implementation:** Not calculated; basket size is N/A for Sage-only data.
 
 ### 2. Average PPL
 - **Formula:** (Fuel profit / Fuel volume) × 100
-- **PRL CSV:** Fuel Sales N/C: 4000, 4001, 4002, 4003, 4008; Fuel Profit = Net Sales − Purchases (Purchases: 5000, 5001, 5003, 5004, 5007, 5012, 5014)
-- **Implementation:** `GET /petrol-data/avg-ppl` — Fuel profit = fuel sales (4000–4008) − fuel purchases (5000–5014). When **volume is not in DB**, denominator is **fuel sales** so PPL is still computed. Formula: `(fuelProfit / sales) * 100` when volume = 0.
+- **Wireframe:** Fuel Sales N/C: 4000, 4001, 4002, 4003, 4004; Fuel Profit = Net Sales + Closing Stock − Opening Stock − Purchases (Purchases: 5000–5005)
+- **Implementation:** `GET /petrol-data/avg-ppl` — Fuel profit from 14 N/Cs (4000–4005, 5000–5005, 5050). When volume is not in DB, denominator is fuel sales. Formula: `(fuelProfit / volume or sales) * 100`.
 
-### 3. PPL After Vending Out Overheads (Actual PPL)
-- **Formula:** (Over Heads / Volume) × 100
-- **PRL CSV:** Overheads N/C: **7103** General Rates, **7100** Rent, **7200** Electricity, **7801** Repairs & Renewals, **7905** Credit Charges
-- **Implementation:** `GET /petrol-data/actual-ppl` and `GET /petrol-data/actual-ppl-breakdown` use exactly these codes. When volume is not in DB, denominator is **fuel sales**, then **total revenue**, so the value is never zero when data exists.
+### 3. PPL After Overheads (Actual PPL)
+- **Formula:** (Fuel Profit after overheads / Site Sales Volume) × 100
+- **Wireframe:** Overheads N/C: **7150** Rent, **7151** Rates, **7200** Electricity, **7600** General Repairs, **7906** Credit Charges
+- **Implementation:** `GET /petrol-data/actual-ppl` and `GET /petrol-data/actual-ppl-breakdown` use these codes. When volume is not in DB, denominator is fuel sales then total revenue.
 
 ### 4. Customer Count
 - **Formula:** From EvoBos (external source)
-- **PRL CSV:** N/A — external system
-- **Implementation:** Not from Sage; when EvoBos is unavailable, dashboard can use transaction count from revenue as a proxy (documented in LatestPetrol).
+- **Wireframe:** N/A — external system
+- **Implementation:** Not from Sage; dashboard can use transaction count from revenue as a proxy when EvoBos is unavailable.
 
 ### 5. Labour Cost %
-- **Formula:** (Labour cost / Shop or fuel sales) × 100 (value in %)
-- **PRL CSV:** Total Labour Cost: **7000** Gross Wages, **7006** Employer NI, **7007** Staff Pensions
-- **Implementation:** `GET /petrol-data/labour-cost` and `GET /petrol-data/labour-cost-breakdown` use 7000, 7006, 7007. LatestPetrol computes percentage as `(totalLabourCost / fuelSales) * 100` (fuel sales used when shop sales N/A).
+- **Formula:** (Total Labour Cost / Fuel Sales) × 100
+- **Wireframe:** Total Labour Cost: **7000** Gross Wages + **7001** Employer NI + **7005** Staff Pensions
+- **Implementation:** `GET /petrol-data/labour-cost` and `GET /petrol-data/labour-cost-breakdown` use 7000, 7001, 7002, 7003, 7005. LatestPetrol computes `(totalLabourCost / fuelSales) * 100`.
 
 ### 6. ROI
-- **Formula:** (Net Profit / Total Investment or total operating cost) × 100
-- **PRL CSV:** "Current Month ROI: On hold", "MoM ROI: On hold"; Net Profit = Total Revenue − Total Cost; Revenue and Cost N/Cs listed in CSV (lines 81, 85).
-- **Implementation:** Revenue N/Cs and Cost N/Cs in `petrolDataSage.js` match CSV. ROI calculation can use Net Profit = Revenue − Cost when implemented.
+- **Formula:** (Net Profit / Investment) × 100
+- **Wireframe:** "Current Month ROI: On hold", "MoM ROI: On hold"; Net Profit = Total Revenue − Total Cost; Revenue/Cost N/Cs in wireframe (items 15–18).
+- **Implementation:** Revenue and Cost N/Cs in `petrolDataSage.js` follow wireframe.csv; ROI = (netProfit / investment) × 100.
 
-### Nominal Codes Summary (from PRL Logic Bar csv.csv)
+### Nominal Codes Summary (from wireframe.csv)
 
 | Purpose        | Nominal codes | Used in |
 |----------------|---------------|---------|
-| Fuel Sales     | 4000, 4001, 4002, 4003, 4008 | fuel-volume, net-sales, avg-ppl, actual-ppl, ppl-comparison, profit, site-rankings |
-| Revenue (total)| 4000, 4001, 4002, 4003, 4008, 4011, 4400, 4901, 4904, 4907, 6101, 6102 | net-sales, profit, monthly-trends, daily-data |
-| Fuel Purchases | 5000, 5001, 5003, 5004, 5007, 5012, 5014 | avg-ppl, profit, ppl-comparison, site-rankings |
-| Labour         | 7000, 7006, 7007 | labour-cost, labour-cost-breakdown, monthly-trends |
-| Overheads      | 7103, 7100, 7200, 7801, 7905 | actual-ppl, actual-ppl-breakdown, ppl-comparison |
-| Cost (full)    | See CSV line 85 | profit, profit-breakdown, site-rankings, monthly-trends |
+| Fuel Sales     | 4000, 4001, 4002, 4003, 4004 | fuel-volume, net-sales, avg-ppl, actual-ppl, ppl-comparison, profit, site-rankings |
+| Shop Sales     | 4032, 4034, 4036 | Total Site Revenue (shop component) |
+| Coffee & Valet | 4028, 4029, 4030, 4031, 4017 | Total Site Revenue (coffee/Costa + valet component) |
+| Revenue (total)| 4000–4004, 4xxx, 41xx, 44xx, 445x per wireframe/CSV | net-sales, profit, monthly-trends, daily-data |
+| Fuel Purchases | 5000, 5001, 5002, 5003, 5004, 5005, 5050 | avg-ppl, profit, ppl-comparison, site-rankings |
+| Labour         | 7000, 7001, 7002, 7003, 7005 | labour-cost, labour-cost-breakdown, monthly-trends |
+| Overheads      | 7150, 7151, 7200, 7600, 7906 | actual-ppl, actual-ppl-breakdown, ppl-comparison |
+| Cost (full)    | 5xxx, 7xxx, 8xxx, 9xxx from All Nominal code.csv | profit, profit-breakdown, site-rankings, monthly-trends |
 
-All petrol-data endpoints that use these codes are in `backend/routes/petrolDataSage.js` and use the constants `FUEL_SALES_CODES`, `REVENUE_CODES`, `FUEL_PURCHASE_CODES`, `LABOUR_CODES`, `OVERHEADS_CODES`, and `COST_CODES`, which match the PRL Logic Bar CSV. The dashboard (Latest Petrol) calls these APIs and displays the values; formulas above are implemented so the displayed values align with the formula sheet and CSV codes.
+All petrol-data endpoints use the constants in `petrolDataSage.js` (`FUEL_SALES_CODES`, `REVENUE_CODES`, `OVERHEADS_CODES`, `LABOUR_CODES`, etc.), which follow **wireframe.csv**. The dashboard (Latest Petrol) calls these APIs; formulas align with the wireframe.
 
 ### Latest Petrol page – card-by-card verification
 
-The **Latest Petrol** page (`frontend/src/pages/LatestPetrol.jsx`) fetches all data from `/api/dashboard/petrol-data/*` (handled by `petrolDataSage.js`). Each Quick Insight card is wired as follows:
+The **Latest Petrol** page (`frontend/src/pages/LatestPetrol.jsx`) fetches all data from `/api/dashboard/petrol-data/*` (handled by `petrolDataSage.js`). Each Quick Insight card follows **wireframe.csv**:
 
-| Card | Formula / CSV | API used | Applied correctly |
-|------|----------------|----------|--------------------|
-| 1. Total Site Revenue | Revenue N/Cs (CSV line 81) | `getPetrolNetSales` | Yes – uses totalRevenue/fuelSales from net-sales (REVENUE_CODES). |
-| 2. Total Fuel Volume + Avg PPL | Avg PPL = (Fuel profit / Fuel volume)×100; when no volume, denominator = fuel sales | `getPetrolFuelVolume`, `getPetrolAvgPPL`, `getPetrolFuelVolumeBreakdown` | Yes – avg-ppl uses fuel sales when volume is 0; fuel sales N/C 4000–4008. |
-| 3. Shop Sales | PRL CSV: "Not available on Sage" | (none) | Yes – shows N/A, no shop data. |
-| 4. Avg Basket Size | PRL CSV: "Not available on Sage" | (none) | Yes – shows 0; formula would be Shop Sales/Transactions. |
-| 5. Total Net Profit | Net Profit = Revenue − Cost (PRL CSV line 78) | `getPetrolProfit`, `getPetrolProfitMargin`, `getPetrolProfitBreakdown` | Yes – profit endpoint uses REVENUE_CODES − COST_CODES. |
-| 6. PPL After Overheads | (Overheads / Volume)×100; Overheads N/C: 7103, 7100, 7200, 7801, 7905 | `getPetrolAvgPPL`, `getPetrolActualPPL` | Yes – actual-ppl uses OVERHEADS_CODES; when no volume, denominator = fuel sales then revenue. |
-| 7. Shop Margin | PRL CSV: "Not available on Sage" | (none) | Yes – shows 0. |
-| 8. Labour Cost % | (Labour cost / Shop or fuel sales)×100; Labour N/C: 7000, 7006, 7007 | `getPetrolLabourCost`, `getPetrolNetSales` | Yes – labour-cost uses LABOUR_CODES; % = (totalLabourCost / fuelSales)×100. |
-| 9. Customer Count | From EvoBos (external) | (none – proxy 0 when N/A) | Yes – EvoBos not in Sage; page uses 0 or future proxy. |
-| 10. ROI | (Net Profit / Total Operating Cost)×100; Cost–Revenue ratio = Cost/Revenue | `getPetrolProfit`, `getPetrolTotalPurchases`, `getPetrolLabourCost`, `getPetrolActualPPLBreakdown` | Yes – ROI = (netProfit / operatingCost)×100; operatingCost = totalCost or (purchases + labour + overheads). Purchases use 5000–5014; labour 7000,7006,7007; overheads 7103,7100,7200,7801,7905. |
+| Card | Formula / wireframe.csv | API used | Applied correctly |
+|------|---------------------------|----------|--------------------|
+| 1. Total Site Revenue | Fuel 4000–4004, Shop 4032/4034/4036, Valet 4028–4031/4017 | `getPetrolNetSales` | Yes – totalRevenue/fuelSales from net-sales (REVENUE_CODES). |
+| 2. Total Fuel Volume + Avg PPL | (Fuel profit / Fuel volume)×100; volume from details (5000–5004) | `getPetrolFuelVolume`, `getPetrolAvgPPL`, `getPetrolFuelVolumeBreakdown` | Yes – fuel sales N/C 4000–4004; when volume=0, denominator = fuel sales. |
+| 3. Shop Sales | Wireframe: 4032, 4034, 4036 | (included in revenue) | Yes – shop component in revenue. |
+| 4. Avg Basket Size | Wireframe: "Not available on Sage" | (none) | Yes – shows 0. |
+| 5. Total Net Profit | Net Profit = Revenue − Cost (wireframe item 5, 15) | `getPetrolProfit`, `getPetrolProfitBreakdown` | Yes – REVENUE_CODES − COST_CODES; 14 fuel profit N/Cs. |
+| 6. PPL After Overheads | Overheads: 7150, 7151, 7200, 7600, 7906 | `getPetrolAvgPPL`, `getPetrolActualPPL` | Yes – actual-ppl uses OVERHEADS_CODES. |
+| 7. Shop Margin | Wireframe: "Not available on Sage" | (none) | Yes – shows 0. |
+| 8. Labour Cost % | 7000 + 7001 + 7005; % = (Total Labour Cost / Fuel Sales)×100 | `getPetrolLabourCost`, `getPetrolNetSales` | Yes – LABOUR_CODES; % = (totalLabourCost / fuelSales)×100. |
+| 9. Customer Count | From EvoBos (external) | (none) | Yes – 0 or proxy when N/A. |
+| 10. ROI | (Net Profit / Investment)×100; wireframe ROI on hold | `getPetrolROI`, `getPetrolProfit`, etc. | Yes – Net Profit and Investment N/Cs per wireframe/CSV. |
 
-Charts and tables on Latest Petrol (Monthly Fuel Performance, PPL Comparison, Top/Bottom Sites) use `getPetrolMonthlyTrends`, `getPetrolPPLComparison`, `getPetrolSiteRankings`, and `getPetrolProfitBySite`, all of which use the same CSV nominal codes in `petrolDataSage.js`. Overheads tab uses `getPetrolActualPPLBreakdown` (7103, 7100, 7200, 7801, 7905). So every formula and CSV-derived data on the Latest Petrol page is applied via these endpoints and nominal codes.
+Charts and tables use `getPetrolMonthlyTrends`, `getPetrolPPLComparison`, `getPetrolSiteRankings`, `getPetrolProfitBySite`; all nominal codes in `petrolDataSage.js` follow **wireframe.csv**. Overheads use `getPetrolActualPPLBreakdown` (7150, 7151, 7200, 7600, 7906).
 
 ## Database Schema Mapping
 

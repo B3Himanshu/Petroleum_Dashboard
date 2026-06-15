@@ -114,7 +114,7 @@ export const ProfitDistributionChart = ({ startDate, endDate }) => {
   // Generate color palette
   const generateColorPalette = (count) => {
     const baseColors = [
-      '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899',
+      'hsl(var(--chart-blue))', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899',
       '#14b8a6', '#ef4444', '#6366f1', '#84cc16', '#f97316'
     ];
     const colors = [];

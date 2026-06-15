@@ -1,4 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 
 const data = [
   { month: "Jan", sales: 180000 },
@@ -27,7 +28,7 @@ export const SalesSummaryChart = () => {
               <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+          <CartesianGrid {...dashCartesianGridProps} vertical={false} />
           <XAxis 
             dataKey="month" 
             axisLine={false} 

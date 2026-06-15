@@ -53,7 +53,7 @@ export const TopPerformingSitesTable = ({ siteId, month, months, year, years }) 
     return (
       <div className="chart-card animate-slide-up" style={{ animationDelay: "500ms" }}>
         <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Loading data...</div>
+          <div className="text-muted-foreground text-sm sm:text-base">Loading data...</div>
         </div>
       </div>
     );
@@ -62,11 +62,11 @@ export const TopPerformingSitesTable = ({ siteId, month, months, year, years }) 
   if (!tableData || tableData.length === 0) {
     return (
       <div className="chart-card animate-slide-up" style={{ animationDelay: "500ms" }}>
-        <h3 className="text-lg font-semibold text-foreground mb-4">
+        <h3 className="dash-section-title mb-4">
           Top Performing Sites
         </h3>
         <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">No data available</div>
+          <div className="text-muted-foreground text-sm sm:text-base">No data available</div>
         </div>
       </div>
     );
@@ -74,17 +74,17 @@ export const TopPerformingSitesTable = ({ siteId, month, months, year, years }) 
 
   return (
     <div className="chart-card animate-slide-up" style={{ animationDelay: "500ms" }}>
-      <h3 className="text-lg font-semibold text-foreground mb-4">
+      <h3 className="dash-section-title mb-4">
         Top Performing Sites
       </h3>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm sm:text-base">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-semibold text-foreground">Site</th>
-              <th className="text-right py-3 px-4 font-semibold text-foreground">Sales</th>
-              <th className="text-right py-3 px-4 font-semibold text-foreground">Avg. PPL</th>
-              <th className="text-left py-3 px-4 font-semibold text-foreground">Progress</th>
+              <th className="text-left py-3 px-4 dash-table-head">Site</th>
+              <th className="text-right py-3 px-4 dash-table-head">Sales</th>
+              <th className="text-right py-3 px-4 dash-table-head">Avg. PPL</th>
+              <th className="text-left py-3 px-4 dash-table-head">Progress</th>
             </tr>
           </thead>
           <tbody>
@@ -93,18 +93,18 @@ export const TopPerformingSitesTable = ({ siteId, month, months, year, years }) 
                 key={index}
                 className="border-b border-border/60 hover:bg-muted/40 transition-colors"
               >
-                <td className="py-3 px-4 text-foreground font-medium">{row.site}</td>
-                <td className="py-3 px-4 text-right text-foreground">
+                <td className="py-3 px-4 dash-table-cell font-medium">{row.site}</td>
+                <td className="py-3 px-4 text-right dash-table-cell">
                   £{row.sales.toLocaleString()}
                 </td>
-                <td className="py-3 px-4 text-right text-foreground">{row.avgPPL.toFixed(2)}</td>
+                <td className="py-3 px-4 text-right dash-table-cell">{row.avgPPL.toFixed(2)}</td>
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <Progress
                       value={(row.sales / maxSales) * 100}
                       className="h-2 flex-1"
                     />
-                    <span className="text-xs text-muted-foreground min-w-[3rem] text-right">
+                    <span className="text-sm sm:text-base text-muted-foreground min-w-[3rem] text-right">
                       {Math.round((row.sales / maxSales) * 100)}%
                     </span>
                   </div>

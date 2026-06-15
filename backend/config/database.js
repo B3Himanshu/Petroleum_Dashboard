@@ -4,8 +4,10 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // Load .env from backend root so scripts work when run from backend/ or backend/test/
+// override: true — Windows (or CI) may define empty ADMIN_* / DB_*; without this, dotenv
+// would keep those and ignore values from backend/.env (breaks sync-admin + login).
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(__dirname, '..', '.env') });
+dotenv.config({ path: join(__dirname, '..', '.env'), override: true });
 
 const { Pool } = pg;
 
@@ -30,9 +32,9 @@ const getConnectionConfig = () => {
         rejectUnauthorized: false // Disable certificate verification for Google Cloud SQL
       } : false,
       // Connection pool settings - tuned for high concurrency (PetrolData/LatestPetrol fire 20+ parallel requests)
-      max: 40,
-      idleTimeoutMillis: 60000,
-      connectionTimeoutMillis: 30000,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
     };
   }
   

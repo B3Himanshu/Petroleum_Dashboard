@@ -1,29 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MapPin, TrendingUp, TrendingDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { getSiteGeo, buildGoogleMapsEmbedUrl } from "@/constants/siteGeo";
 
-// Generate SVG placeholder as data URI
-const generatePlaceholder = (text, width = 400, height = 250) => {
-  const fontSize = width < 200 ? 14 : 20;
-  const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100%" height="100%" fill="#1a1a1a"/>
-  <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="${fontSize}" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${escapedText}</text>
-</svg>`;
-  return `data:image/svg+xml;base64,${btoa(svg)}`;
-};
+/** `visibleMetrics` — keys to show: sales, profit, saleVolume, ppl. Omit or empty = show all (backward compatible). */
+export const SiteCard = ({ site, metrics, index, trend: trendProp, visibleMetrics }) => {
+  const show = (key) =>
+    !visibleMetrics || visibleMetrics.length === 0 ? true : visibleMetrics.includes(key);
 
-// Get site image from local public folder
-// Use index to ensure variety - no 3 consecutive images are the same
-// Distributes images evenly: 1,2,3,4,5,6,1,2,3,4,5,6...
-const getSiteImage = (index) => {
-  const imageNumber = (index % 6) + 1; // Cycle through 1-6 based on display position
-  return `/station-${imageNumber}.jpg`;
-};
+  const siteId = site.siteId || site.id || 0;
+  const geo = getSiteGeo(siteId);
+  const mapEmbedUrl = buildGoogleMapsEmbedUrl(geo);
+  const localPhoto = siteId > 0 ? `/sites/site-${siteId}.jpg` : null;
+  const [photoError, setPhotoError] = useState(false);
 
-export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
-  const [imageError, setImageError] = useState(false);
-  const siteImage = getSiteImage(index); // Use index instead of siteId for better distribution
+  // Reset error state if siteId changes (defensive: key-based rendering should handle this,
+  // but state can get stuck if the same instance is reused with a different siteId).
+  useEffect(() => {
+    setPhotoError(false);
+  }, [siteId]);
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -44,19 +38,34 @@ export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
   // Trend: use prop from parent (data-driven) or neutral if not provided
   const trend = typeof trendProp === 'string' && (trendProp === 'up' || trendProp === 'down') ? trendProp : null;
   const siteName = site.siteName || site.name || 'Unknown Site';
-  const siteId = site.siteId || site.id || 0;
   const siteNumber = siteId > 0 ? `Site #${siteId}` : '';
 
   return (
     <div className="chart-card animate-slide-up overflow-hidden" style={{ animationDelay: `${index * 50}ms` }}>
-      {/* Site Image */}
+      {/* Site photo (local) → map embed fallback */}
       <div className="relative w-full h-48 overflow-hidden rounded-t-lg bg-muted">
-        <img
-          src={imageError ? generatePlaceholder(siteName, 400, 250) : siteImage}
-          alt={siteName}
-          className="w-full h-full object-cover"
-          onError={() => setImageError(true)}
-        />
+        {localPhoto && !photoError ? (
+          <img
+            src={localPhoto}
+            alt={siteName}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={() => setPhotoError(true)}
+          />
+        ) : mapEmbedUrl ? (
+          <iframe
+            src={mapEmbedUrl}
+            title={`Map of ${siteName}`}
+            className="w-full h-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <MapPin className="w-8 h-8 text-muted-foreground opacity-40" />
+          </div>
+        )}
         {/* Trend Indicator (data-driven from parent; hidden if no trend) */}
         {trend != null && (
           <div className="absolute top-2 right-2">
@@ -78,9 +87,9 @@ export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
         <div className="flex items-center gap-2 mb-3">
           <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-foreground truncate">{siteName}</h3>
+            <h3 className="text-base font-semibold text-foreground truncate">{siteName}</h3>
             {siteNumber && (
-              <p className="text-xs text-muted-foreground">{siteNumber}</p>
+              <p className="text-sm text-muted-foreground">{siteNumber}</p>
             )}
           </div>
         </div>
@@ -88,44 +97,59 @@ export const SiteCard = ({ site, metrics, index, trend: trendProp }) => {
         {/* Metrics Grid */}
         <div className="grid grid-cols-2 gap-3">
           {/* Sales */}
-          {metrics?.netSales !== undefined && (
+          {show('sales') && metrics?.netSales !== undefined && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Sales</p>
-              <p className="text-sm font-bold" style={{ color: '#3b82f6' }}>
+              <p className="text-sm text-muted-foreground mb-1">Sales</p>
+              <p className="text-base sm:text-lg font-bold" style={{ color: 'hsl(var(--chart-blue))' }}>
                 {formatCurrency(metrics.netSales)}
               </p>
             </div>
           )}
 
-          {/* Profit (show as positive magnitude) */}
-          {metrics?.profit !== undefined && (
+          {/* Gross Profit (fuel + shop + Coffee & Valet) */}
+          {show('profit') && metrics?.profit !== undefined && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Profit</p>
-              <p className="text-sm font-bold" style={{ color: '#10b981' }}>
+              <p className="text-sm text-muted-foreground mb-1">Gross Profit</p>
+              <p className="text-base sm:text-lg font-bold" style={{ color: '#10b981' }}>
                 {formatCurrency(Math.abs(Number(metrics.profit) || 0))}
               </p>
             </div>
           )}
 
           {/* Volume */}
-          {metrics?.totalFuelVolume !== undefined && (
+          {show('saleVolume') && metrics?.totalFuelVolume !== undefined && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Volume</p>
-              <p className="text-sm font-bold" style={{ color: '#f59e0b' }}>
+              <p className="text-sm text-muted-foreground mb-1">Volume</p>
+              <p className="text-base sm:text-lg font-bold" style={{ color: '#f59e0b' }}>
                 {formatVolume(metrics.totalFuelVolume)}
               </p>
             </div>
           )}
 
-          {/* PPL: show PPL after overheads when provided (Metrics Comparison), else Avg PPL */}
-          {(metrics?.pplAfterOverheads !== undefined || metrics?.avgPPL !== undefined) && (
+          {/* PPL when volume &gt; 0; Margin % when no litre volume (same gross profit ÷ sales basis as dashboard) */}
+          {show('ppl') &&
+            (metrics?.totalFuelVolume !== undefined ||
+            metrics?.pplAfterOverheads !== undefined ||
+            metrics?.avgPPL !== undefined ||
+            metrics?.grossMarginPct !== undefined) && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">
-                {metrics?.pplAfterOverheads !== undefined ? "PPL (after OH)" : "PPL"}
-              </p>
-              <p className="text-sm font-bold" style={{ color: '#8b5cf6' }}>
-                {(Number(metrics?.pplAfterOverheads ?? metrics?.avgPPL) || 0).toFixed(2)} p
-              </p>
+              {Number(metrics?.totalFuelVolume) > 0 ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {metrics?.pplAfterOverheads !== undefined ? "PPL after O/H" : "Gross PPL"}
+                  </p>
+                  <p className="text-base sm:text-lg font-bold" style={{ color: '#8b5cf6' }}>
+                    {Math.abs(Number(metrics?.pplAfterOverheads ?? metrics?.avgPPL) || 0).toFixed(2)} p
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-1">Margin %</p>
+                  <p className="text-base sm:text-lg font-bold" style={{ color: '#8b5cf6' }}>
+                    {(Number(metrics?.grossMarginPct) || 0).toFixed(2)}%
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

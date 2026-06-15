@@ -1,0 +1,1096 @@
+================================================================================
+HSRL UI — LIGHT (WHITE) MODE & THEME CONFIGURATION
+================================================================================
+Generated reference: documents how light mode is selected via environment
+variables, how it maps to CSS, Tailwind, and how styling applies on BOTH
+desktop web (wide / lg+) and narrow / phone views (including the Android APK
+install strip in the sidebar). §11 lists every route’s light UI shell and
+content pattern; §12 is the KPI (MetricCard) and Recharts typography size
+matrix for mobile vs sm+. §13 is a file index; §14 is the implementation
+changelog. Source files: frontend/src/index.css,
+frontend/tailwind.config.mjs, frontend/src/contexts/ThemeContext.jsx,
+frontend/vite.config.mjs, backend/server.js (/api/ui-config),
+backend/.env.example, plus layout in frontend/src/pages/LatestPetrol.jsx,
+frontend/src/components/dashboard/Header.jsx, Sidebar.jsx, App.jsx.
+
+--------------------------------------------------------------------------------
+1. WHAT “LIGHT MODE” MEANS IN THIS APP
+--------------------------------------------------------------------------------
+- The document root <html> gets a class: either "light" or "dark"
+  (see ThemeContext: document.documentElement.classList.add(theme)).
+- Tailwind is configured with darkMode: ["class"], so utilities like
+  "dark:bg-..." only apply when <html class="dark">.
+- Default semantic colors for LIGHT mode live in CSS :root { ... } as HSL
+  triples (no "hsl()" wrapper). Components use them via hsl(var(--token)).
+
+- When dark mode is DISABLED by env, the app stays in light mode only: the
+  header theme toggle is hidden and theme is forced to "light".
+
+--------------------------------------------------------------------------------
+2. ENVIRONMENT — HOW LIGHT-ONLY / TOGGLE IS APPLIED
+--------------------------------------------------------------------------------
+
+2a) Runtime (authoritative for toggle visibility)
+    File: backend/server.js — GET /api/ui-config
+    Response JSON: { "darkModeToggle": true | false }
+
+    Env var read on server: DARK_MODE_TOGGLE
+    - If unset or any value except case-insensitive "false" → darkModeToggle true
+    - If "false" → darkModeToggle false (no dark switch; user stays in light)
+
+    Example (backend/.env.example):
+      # DARK_MODE_TOGGLE=false
+
+2b) Build-time default (Vite client bundle)
+    File: frontend/vite.config.mjs
+    - Reads backend/.env key DARK_MODE_TOGGLE via readBackendEnvValue()
+    - Falls back to frontend env VITE_DARK_MODE_TOGGLE, then defaults to enabled
+    - Defines: import.meta.env.VITE_DARK_MODE_TOGGLE as string "true" or "false"
+
+    This bakes an initial default before /api/ui-config runs (useful for Docker
+    builds where backend .env may be missing at build time).
+
+2c) Client logic
+    File: frontend/src/contexts/ThemeContext.jsx
+
+    parseBuildDarkModeToggle():
+    - Reads import.meta.env.VITE_DARK_MODE_TOGGLE
+    - Empty/undefined → treat as true (toggle enabled)
+    - "false" or "0" → toggle disabled
+
+    Initial theme state:
+    - If toggle disabled → theme starts as 'light'
+    - If toggle enabled → localStorage 'theme' or default 'dark'
+
+    After fetch('/api/ui-config'):
+    - If response.darkModeToggle === false → sets darkModeToggleEnabled false
+    - Effect: if !darkModeToggleEnabled, theme forced to 'light'
+
+    uiConfigHydrated: header waits before showing toggle (see Header.jsx) so
+    build-time "true" does not flash a toggle when server says false.
+
+2d) ThemeProvider mount
+    File: frontend/src/App.jsx — wraps routes with <ThemeProvider>.
+
+--------------------------------------------------------------------------------
+3. LIGHT MODE — :root SEMANTIC TOKENS (HSL VALUES)
+--------------------------------------------------------------------------------
+File: frontend/src/index.css — @layer base — :root { ... }
+
+Reference / glass math (hex — used for gradients & glass, not replaced by .dark):
+  --bg-gradient-1: #f3f8ff;
+  --bg-gradient-2: #eaf3ff;
+  --bg-gradient-3: #f8fbff;
+  --bg-gradient-accent: #b5d9ff;
+  --bg-gradient-accent-2: #d3c8ff;
+  --accent-ref: #4f6df5;
+  --accent-hover-ref: #3f5ce8;
+  --text-ref: #1e2b37;
+  --text-muted-ref: #607283;
+  --glass-border-rgb: 128 155 185;
+  --glass-shadow-card-ref: 0 10px 30px rgb(86 120 156 / 0.14);
+  --glass-shadow-elevated-ref: 0 18px 44px rgb(77 108 142 / 0.2);
+  --glass-blur: 16px;
+  --glass-blur-heavy: 24px;
+
+Semantic HSL (use as hsl(var(--name))):
+  --background: 210 50% 98%;
+  --foreground: 210 35% 17%;
+  --card: 210 45% 99.5%;
+  --card-foreground: 210 35% 17%;
+  --popover: 210 45% 99.5%;
+  --popover-foreground: 210 35% 17%;
+  --primary: 231 89% 64%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 35% 96%;
+  --secondary-foreground: 210 35% 17%;
+  --muted: 210 32% 95%;
+  --muted-foreground: 215 18% 42%;
+  --accent: 231 89% 64%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 28% 88%;
+  --input: 214 28% 88%;
+  --ring: 231 89% 64%;
+  --radius: 0.75rem;
+
+Sidebar (light):
+  --sidebar-bg: 210 55% 98%;
+  --sidebar-foreground: 210 35% 17%;
+  --sidebar-muted: 215 18% 42%;
+  --sidebar-accent: 231 89% 64%;
+
+Charts / metrics:
+  --chart-blue: 231 89% 64%;
+  --chart-green: 142 71% 45%;
+  --chart-yellow: 43 96% 56%;
+  --chart-orange: 25 95% 53%;
+  --chart-purple: 262 83% 58%;
+  (--metric-* mirrors chart set for KPI accents)
+
+Shadows (light, softer):
+  --shadow-sm / --shadow-md / --shadow-lg / --shadow-card
+  (see index.css :root for full definitions)
+
+Dark overrides: same file, .dark { ... } block — replaces the semantic tokens
+and gradient layers for dark UI (html.dark body::before / body::after).
+
+--------------------------------------------------------------------------------
+4. GLOBAL LAYOUT & BACKGROUND (LIGHT)
+--------------------------------------------------------------------------------
+File: frontend/src/index.css
+
+- html: background-color hsl(var(--background)); max-width 100vw
+- body: text-foreground, font-sans, Plus Jakarta Sans, overflow-x-hidden,
+        bg-transparent (gradient shows through)
+
+- body::before (light): animated linear-gradient using --bg-gradient-1/2/3
+- body::after (light): soft radial orbs using --bg-gradient-accent / accent-2,
+  blur + low opacity
+
+- .dark body::before / ::after: different hsl stops (see lines ~192–207)
+
+- prefers-reduced-motion: gradient animations disabled
+
+- #root: relative, min-h-screen, w-full, min-w-0
+
+--------------------------------------------------------------------------------
+5. COMPONENT LAYER — LIGHT SURFACES (GLASS / CARDS)
+--------------------------------------------------------------------------------
+File: frontend/src/index.css — @layer components
+
+These classes use hsl(var(--card)) and light glass borders. Dark variants use
+".dark .classname" for stronger glass / slate borders.
+
+5a) Typography utilities (responsive sm:/lg: — mobile-first)
+  .dash-section-title     → text-base sm:text-lg lg:text-xl font-bold text-foreground
+  .dash-card-title        → text-sm sm:text-base font-semibold text-foreground
+  .dash-card-label        → text-xs sm:text-sm text-muted-foreground
+  .dash-card-value        → text-2xl sm:text-[2rem] font-bold text-foreground
+  .dash-card-subtext      → text-sm sm:text-base text-muted-foreground
+  .dash-chart-heading     → text-lg sm:text-xl font-bold text-foreground
+  .dash-chart-subtitle    → text-sm sm:text-base text-foreground/90
+  .dash-insight-breakdown → text-sm, spacing, text-foreground/90 (readable on white)
+  .dash-table-head/cell   → text-xs sm:text-sm / text-sm sm:text-base
+
+5b) Sidebar nav
+  .sidebar-nav-item — hover uses sidebar-accent/10; active uses /15
+
+5c) Glass / shell (LIGHT default rules)
+  .glass-panel
+    - backdrop-filter blur(--glass-blur-heavy)
+    - background: hsl(var(--card) / 0.72)
+    - border-color: rgb(var(--glass-border-rgb) / 0.28)
+    - box-shadow: var(--shadow-sm)
+
+  .main-stage-card / .main-stage-header-card (LIGHT)
+    - rounded 1rem; @media (min-width: 640px) → border-radius 1.5rem
+    - background hsl(var(--card) / 0.97)
+    - backdrop blur(--glass-blur)
+    - border 1px solid rgb(glass-border / 0.22)
+    - box-shadow: --shadow-lg, --glass-shadow-card-ref,
+      light-only inset highlight: 0 1px 0 rgb(255 255 255 / 0.42) inset
+
+  .metric-card, .chart-card (LIGHT)
+    - rounded-xl; chart-card p-4 lg:p-6
+    - background hsl(var(--card) / 0.82)
+    - blur + border rgb(glass-border / 0.25)
+    - box-shadow: --shadow-card + glass card ref
+
+  .filter-button (LIGHT)
+    - card / 0.78 bg, glass border / 0.28
+
+5d) Utilities
+  .scrollbar-hide, .animate-fade-in / slide-up / scale-in
+  GPU hints on animations
+
+5e) Mobile chart fullscreen (uses semantic bg from :root — light or dark)
+  [data-rotate-plot][data-chart-expanded="true"]
+    height: calc(100dvh - 52px) — responsive viewport height for phones
+
+5f) Plotly tooltip glass (light blur; .dark increases blur slightly)
+
+--------------------------------------------------------------------------------
+6. TAILWIND — MAPPING TO CSS VARIABLES (LIGHT WHEN html.light OR NO .dark)
+--------------------------------------------------------------------------------
+File: frontend/tailwind.config.mjs
+
+- darkMode: ["class"] — dark utilities require class "dark" on ancestor (html)
+- extend.colors maps border, background, foreground, primary, secondary,
+  destructive, muted, accent, popover, card, sidebar.*, chart.*, metric.*
+  → hsl(var(--token))
+
+- borderRadius lg/md/sm → var(--radius) family
+- boxShadow: card, soft, glow (glow uses hsl(var(--primary) / 0.3))
+- fontFamily sans → Plus Jakarta Sans
+
+In JSX, prefer semantic classes: bg-background, text-foreground, bg-card,
+border-border, text-muted-foreground, hsl(var(--chart-blue)) in charts.
+
+Many components pair light base + dark: variant, e.g. bg-blue-50 dark:bg-blue-950/20
+— in light mode only the first part applies.
+
+--------------------------------------------------------------------------------
+7. CHARTS & DASHBOARD TYPOGRAPHY (LIGHT VISIBILITY)
+--------------------------------------------------------------------------------
+File: frontend/src/lib/dashboardChartTypography.js
+- Cartesian grid / muted lines tuned so dashed lines stay visible in light mode
+  (uses muted-foreground, not border-only)
+
+Recharts tooltips often use fixed dark panel hsl(222, 47%, 11%) for contrast on
+both themes (legibility over matching card bg).
+
+--------------------------------------------------------------------------------
+8. RESPONSIVE BREAKPOINTS (TAILWIND) — SHARED BY LIGHT & DARK
+--------------------------------------------------------------------------------
+Standard Tailwind defaults (used across the app):
+  sm:  640px   — phone → small tablet; many layouts switch to row / larger type
+  md:  768px   — tablet
+  lg:  1024px  — desktop: sidebar + content margin, wider grids, open sidebar
+  xl:  1280px
+  2xl: 1400px  — container max width in tailwind.config.mjs
+
+Rule file: .cursor/rules/responsive-design.mdc
+- Mobile-first base styles; enhance with sm:/md:/lg:
+- When fixing bugs, preserve desktop (sm+) unless explicitly changing it
+
+--------------------------------------------------------------------------------
+9. DESKTOP VIEW (WEB, lg+) — LIGHT MODE LAYOUT & STYLING
+--------------------------------------------------------------------------------
+The same :root light tokens (section 3) apply on desktop; desktop-specific
+behavior is mostly layout, spacing, and typography scale — not different hex
+palettes.
+
+9a) Dashboard shell (example: LatestPetrol /dashboard)
+    File: frontend/src/pages/LatestPetrol.jsx
+
+    - Outer column: flex flex-1 flex-col; horizontal margin scales up
+        mx-2 mt-2 mb-3 gap-2
+        → sm:mx-3 sm:mt-3 sm:mb-4 sm:gap-3
+        → lg:mx-5 lg:mt-4 lg:mb-6 lg:gap-3
+    - Main content wrapper transitions margin when sidebar open:
+        ml-0 default; sidebarOpen ? lg:ml-64 : lg:ml-0
+        (16rem = w-64 matches fixed sidebar width)
+    - Sidebar state on desktop:
+        - Initial: window.innerWidth >= 1024 → sidebarOpen true
+        - Resize listener: width >= 1024 forces open; below forces closed
+    - Stage surfaces (LIGHT glass — section 5c):
+        .main-stage-header-card — header block
+        .main-stage-card — scrollable body; inner padding
+          p-3 sm:p-4 lg:p-8
+    - Page titles (light text-foreground on glass card):
+        Welcome span: text-xl sm:text-2xl lg:text-3xl font-bold uppercase
+        H1: text-lg sm:text-xl sm:truncate lg:text-2xl
+    - Section headings: text-sm sm:text-base lg:text-lg font-semibold px-3 sm:px-4
+    - Grids (more columns on wide screens):
+        grid-cols-1 lg:grid-cols-2 gap-4 (many blocks)
+        grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 (KPI-style)
+
+9b) Header (desktop / sm+ row layout)
+    File: frontend/src/components/dashboard/Header.jsx
+
+    - Container: sm:h-16 sm:flex-row sm:items-center sm:justify-between
+      lg:px-6 (horizontal padding on large screens)
+    - Company name: text-sm sm:text-xs md:text-sm lg:text-base; sm:max-w-[min(100%,28rem)]
+    - Menu button: sm:p-1.5; icon sm:w-5 sm:h-5 text-foreground (light: dark blue text)
+    - Total Sales pill (light): bg-primary text-primary-foreground rounded-lg shadow-sm
+      padding scales sm:px-3 lg:px-4 sm:py-2 lg:py-2.5; label "Total Sales:" hidden sm:inline
+    - “Show M” + theme switch rows: border border-border bg-background (light: white/near-white panel)
+      labels hidden sm:inline for "Show M" / "Dark UI"
+    - HSRL badge: border-l border-border; sm:pl-2 lg:pl-4
+      inner: bg-gradient-to-br from-primary to-chart-blue text-primary-foreground
+      height text scale sm:h-8 lg:h-10 text-sm lg:text-base
+
+9c) Sidebar (desktop: visible when open; same light tokens)
+    File: frontend/src/components/dashboard/Sidebar.jsx
+
+    - Fixed aside 16rem × 100dvh, z-index 1000
+    - LIGHT surface: bg-sidebar-bg/90 backdrop-blur-xl
+      border-r border-white/30 dark:border-white/10
+      → On light mode: frosted white/blue tint (--sidebar-bg), bright right edge
+    - Nav: text-sidebar-muted / text-sidebar-foreground (semantic HSL from :root)
+    - Footer session card: bg-background/70 border-border/70 (light: soft white card)
+    - Overlay for closing on small screens: fixed bg-black/50 z-40 lg:hidden
+      → On lg+, overlay hidden (desktop does not use dimmer)
+    - Android APK download block: only when isAndroid; class includes lg:hidden
+      → Desktop web never shows APK row; mobile Android WebView/browser can
+
+9d) Charts & cards on desktop (sm / lg up)
+    - Components use useIsSmUp() (matches Tailwind sm breakpoint) for Recharts
+      margins, bar sizes, axis labels, legend font — full-width plot, no mobile
+      horizontal scroll unless data-dense mobile-only paths.
+    - .chart-card: p-4 lg:p-6 on large screens (more breathing room)
+    - .metric-card: p-4 lg:p-5
+
+9e) Login / auth chrome (light)
+    - AuthSignInChrome.jsx comments: hero and backdrop tuned for light theme when
+      dark mode is off; uses semantic backgrounds consistent with dashboard
+
+--------------------------------------------------------------------------------
+10. MOBILE & TABLET (NARROW VIEW) — LIGHT UI (NOT ONLY APK)
+--------------------------------------------------------------------------------
+Rule file: .cursor/rules/responsive-design.mdc
+- Base styles target ~320–767px first; verify ~375px and ~768px
+
+Representative patterns in CSS (index.css):
+- main-stage-card / header-card: border-radius 1rem base → @media (min-width: 640px) → 1.5rem
+- dash-* classes: smaller base text → sm:text-base (or larger) on wider phones
+
+Representative patterns in components:
+- Header: two-row stack below sm; compact sales label "Sales:" sm:hidden branch
+- Chart wrappers: overflow-x-auto + min-width plot where many months (mobile)
+- RotateViewButton: sm:hidden; expanded plot height calc(100dvh - 52px)
+- Sidebar: slide-in -translate-x-full when closed; full-screen overlay lg:hidden
+
+APK: see §9c — Android download appears only for Android UA and lg:hidden; it is
+not part of desktop web styling.
+
+--------------------------------------------------------------------------------
+11. FULL LIGHT UI INVENTORY — EVERY ROUTE (WEB & MOBILE)
+--------------------------------------------------------------------------------
+Source of routes: frontend/src/App.jsx. In light mode, all pages use :root
+semantic tokens (§3) unless a component adds dark: overrides; auth pages use
+bg-card / bg-background / border-border explicitly.
+
+11a) Route → page file (quick map)
+    /  → Navigate to /dashboard
+    /latest-petrol → Navigate to /dashboard (alias)
+    /dashboard → LatestPetrol.jsx — main HSRL dashboard (KPIs, charts, tables)
+    /location-dashboard → Index.jsx — legacy location dashboard (map, filters)
+    /comparison → Comparison.jsx + components/comparison/SiteComparison.jsx
+    /metrics-comparison → MetricsComparison.jsx — Plotly bar chart + shadcn Table
+    /settings → Settings.jsx — profile Card on transparent bg, p-4 md:p-8
+    /login → Login.jsx — AuthSignInShell + Card (bg-card, border-border)
+    /forgot-password, /reset-password, /verify-email → same auth shell pattern
+    /admin/login → AdminLogin.jsx — AuthSignInShell
+    /admin → AdminDashboard.jsx — user management Cards + Table
+    /admin/settings → AdminSettings.jsx — admin settings Card layout
+    * → NotFound.jsx
+
+11b) Dashboard shell (LatestPetrol, Index, Comparison, MetricsComparison)
+    LIGHT surfaces: .main-stage-header-card, .main-stage-card (§5c).
+    WEB (lg+): sidebar open by default (≥1024px); main column lg:ml-64; outer
+      padding lg:mx-5 lg:mt-4 lg:mb-6; inner body often lg:p-8.
+    MOBILE: ml-0; mx-2–sm:mx-3; sidebar drawer + overlay; header two-row < sm.
+    Header: semantic text-foreground, primary pill for total sales when shown,
+      border-border bg-background for switches; HSRL badge gradient primary→chart-blue.
+
+11c) /dashboard (LatestPetrol) — matrices & blocks (light)
+    - KPI grids: typically grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 (or 2) gap-3/4.
+    - MetricCard (§12): glass-style cards via bg-card border-border; see §12 for sizes.
+    - Section titles: text-sm sm:text-base lg:text-lg font-semibold text-foreground;
+      dividers bg-border.
+    - chart-card / Card: white glass on gradient; Fuel, Shop, Valet charts, ROI, etc.
+    - Tables / breakdown lists: text-foreground, muted-foreground; mobile row fixes
+      min-w-0 break-words (§14e).
+    - Modals: CardDetailModal and breakdown modals use semantic card + borders.
+
+11d) /location-dashboard (Index)
+    Same shell as §11b; FilterSection, MetricCard grid, maps (CityMap), charts.
+    Light mode: map and cards rely on --card / --border / --foreground.
+
+11e) /comparison
+    Shell §11b; Header showTotalSales={false}. SiteComparison: filters, cards,
+    charts — semantic colors; photo gallery uses card surfaces.
+
+11f) /metrics-comparison
+    Shell §11b; Plotly theme follows useTheme() (light paper/bg vs dark).
+    Table: shadcn Table + border-border; filter bar Buttons; mobile horizontal
+    scroll where needed for wide tables.
+
+11g) Auth pages (Login, ForgotPassword, ResetPassword, VerifyEmail, AdminLogin)
+    AuthSignInShell: min-h-screen bg-background; radial blue tint; max-w-md column.
+    AuthBrandHeader: text-foreground, muted-foreground tagline, primary-bordered pills.
+    Form Card: Login uses rounded-2xl border-border bg-card shadow-lg (light shadow).
+    Inputs: shadcn Input (semantic border-input, bg-background).
+
+11h) Settings & AdminSettings
+    Settings: min-h-screen bg-transparent p-4 md:p-8; max-w-lg mx-auto; Card default
+    shadcn (light card surface). Back button hover:bg-white/10 (subtle on light).
+
+11i) AdminDashboard
+    min-h-screen bg-muted/30 (light grey wash); Container Card + Table; standard
+    foreground text on light tables.
+
+11j) NotFound
+    Centered content; text-foreground / muted-foreground; link to home.
+
+--------------------------------------------------------------------------------
+12. KPI “MATRIX” (MetricCard) & CHART TYPOGRAPHY — SIZES WEB vs MOBILE
+--------------------------------------------------------------------------------
+12a) MetricCard.jsx (KPI tiles on Index / LatestPetrol-style grids)
+    LIGHT: bg-card, border-border, shadow-sm → hover:shadow-md; text-foreground /
+      text-muted-foreground; icon wells use bg-metric-*/10 text-metric-* (tokens §3).
+    MOBILE (base):
+      - Card: rounded-xl p-3 border; inner header mb-2; icon box w-8 h-8, icon w-4 h-4
+      - Title: text-sm font-semibold uppercase text-muted-foreground
+      - Value h3: text-[1.75rem] font-bold text-foreground
+      - Subtitle: text-sm text-muted-foreground
+      - Mini chart area: h-16 mt-3
+    WEB (sm+ / lg+):
+      - sm: rounded-2xl p-4; lg:p-5; sm:mb-3; icon sm:w-10 h-10 lg:w-11 h-11,
+        icon sm:w-5 h-5; title sm:text-base; value sm:text-[2.1rem]; subtitle
+        sm:text-base; chart sm:h-20 sm:mt-4
+    Change row: text-xs with metric-green / destructive / muted-foreground.
+    Legacy sparkline (no chartData): h-12 flex bar row, mt-4 (no sm: variant).
+
+12b) dashboardChartTypography.js — Recharts px vs Tailwind tier (useIsSmUp = sm)
+    All values are fontSize in px unless noted. Light mode: grid stroke uses
+    hsl(var(--muted-foreground)) (readable on white cards).
+
+    Function              | Mobile (!sm) | Desktop (sm+)
+    ----------------------|--------------|------------------
+    dashTickPrimary       | 13           | 15
+    dashXAxisTickSizePrimary | 12        | 15
+    dashTickSecondary     | 12           | 14
+    dashAxisLabel         | 12           | 14
+    dashTooltipTitlePx    | 14           | 16
+    dashTooltipBodyPx     | 13           | 15
+    dashLegendFontPx      | 13           | 15
+    dashLegendIconSize    | 10           | 11
+
+    Month axis: formatMonthAxisTick (Mon YY). Interval: all months (0).
+
+12c) shadcn UI primitives (all routes)
+    Button, Input, Card, Table, Switch, etc. map to tailwind.config semantic
+    colors (§6) — light mode = hsl(var(--card)), --border, --primary, etc.
+
+--------------------------------------------------------------------------------
+13. FILES QUICK INDEX
+--------------------------------------------------------------------------------
+  frontend/src/index.css              — :root light tokens, body gradient, components
+  frontend/tailwind.config.mjs       — darkMode class, color → CSS vars
+  frontend/src/contexts/ThemeContext.jsx — theme state, ui-config, localStorage
+  frontend/vite.config.mjs            — VITE_DARK_MODE_TOGGLE define
+  frontend/src/App.jsx                — ThemeProvider + route list (§11a)
+  frontend/src/components/dashboard/Header.jsx — toggle when enabled; sm/lg layout
+  frontend/src/components/dashboard/Sidebar.jsx — light sidebar surface; overlay lg:hidden
+  frontend/src/components/dashboard/MetricCard.jsx — KPI matrix sizing (§12a)
+  frontend/src/lib/dashboardChartTypography.js — chart px scale (§12b)
+  frontend/src/pages/LatestPetrol.jsx — desktop shell lg:ml-64, grids, stage padding,
+      shop/valet breakdown rows (mobile flex min-w-0; see §14e)
+  frontend/src/pages/Index.jsx — location dashboard (§11d)
+  frontend/src/pages/Comparison.jsx — Site Comparison shell (§11e); see §14g
+  frontend/src/pages/MetricsComparison.jsx — metrics + Plotly (§11f)
+  frontend/src/pages/Login.jsx, ForgotPassword.jsx, ResetPassword.jsx, VerifyEmail.jsx
+  frontend/src/pages/AdminLogin.jsx, AdminDashboard.jsx, AdminSettings.jsx
+  frontend/src/pages/Settings.jsx
+  frontend/src/pages/NotFound.jsx
+  frontend/src/components/auth/AuthSignInChrome.jsx — auth shell + brand header (§11g)
+  frontend/src/components/dashboard/MonthlyFuelPerformanceChart.jsx — Fuel chart
+  frontend/src/components/dashboard/VolumeVsPPLChart.jsx — Volume vs Gross PPL
+  frontend/src/components/dashboard/ShopValetMonthlyComboCharts.jsx — Shop / Coffee & Valet monthly combo
+  .cursor/rules/responsive-design.mdc — mobile-first + desktop-unchanged convention
+  backend/server.js                   — GET /api/ui-config, DARK_MODE_TOGGLE
+  backend/.env.example                — DARK_MODE_TOGGLE comment
+
+Note: frontend/.env.example does not currently document VITE_DARK_MODE_TOGGLE;
+build-time flag is primarily wired from backend/.env DARK_MODE_TOGGLE in
+vite.config.mjs.
+
+--------------------------------------------------------------------------------
+14. IMPLEMENTATION CHANGELOG — RESPONSIVE & LIGHT UI FIXES (CODEBASE)
+--------------------------------------------------------------------------------
+This section records concrete UI edits (mobile readability, charts, layout) and
+related page/API cleanups. Convention: prefer mobile-first fixes; keep desktop
+(sm: 640px+) layout and styling stable unless a task explicitly changes it (see
+.cursor/rules/responsive-design.mdc — “Desktop vs mobile (HSRL convention)”).
+
+14a) Cursor rule — responsive-design.mdc
+    - Added: desktop (sm+) should not change unless explicitly requested;
+      mobile/tablet is where responsiveness work belongs.
+    - Added: avoid regressing desktop when fixing mobile.
+
+14b) Fuel chart — MonthlyFuelPerformanceChart.jsx
+    - Mobile: increased chart margins (left/right) and Y-axis band widths so
+      “Margin %” and “£M” / “£k” use position "left" / "right" (not insideLeft /
+      insideRight), avoiding clip and overlap with tick numbers.
+    - Mobile: larger plot height (fluid min(22rem,58dvh) with caps), slightly
+      larger bars, tick/legend sizes, bottom margin for X-axis.
+    - Desktop (sm:): unchanged chart margins and fixed plot height pattern.
+
+14c) Volume vs Gross PPL — VolumeVsPPLChart.jsx
+    - Mobile: chartMargin left/right/bottom aligned with Fuel-style gutters;
+      yLeftW / yRightW widened; X-axis height 52, tick fonts 10/11.
+    - Mobile: Y labels “Gross PPL” and “Vol (M/k)” as outside left/right, 10px.
+    - Mobile: plot height 300px (vs 252px desktop).
+    - Removed unused dashTickPrimary import.
+    - Desktop (sm:): prior margins and labels preserved.
+
+14d) Shop & Coffee & Valet combo charts — ShopValetMonthlyComboCharts.jsx
+    - SegmentComboChart prop shopMobileAxisLabels: mobile-only extra margins,
+      wider Y tick columns, outside axis titles (replaces insideLeft/insideRight
+      overlap on narrow screens).
+    - Shop: shopMobileAxisLabels enabled (grid + ShopMonthlyComboChart).
+    - Coffee & Valet: same prop enabled (grid + ValetMonthlyComboChart).
+    - When marginAxisCap >= 15 (valet card): mobileValetScale bumps right margin,
+      bottom, left/right axis widths for long “%” and “£k” ticks.
+    - Mobile many-month X-axis: xHeight 52 when shopMobileAxisLabels && manyMonths.
+    - Desktop (sm:): unchanged SegmentComboChart branches.
+
+14e) Dashboard breakdown rows (overlap fix) — LatestPetrol.jsx
+    - Shop Sales Breakdown, Shop Cost Breakdown, Coffee & Valet sale breakdown,
+      Coffee & Valet cost breakdown: list rows used flex without min-w-0 on the
+      label column, so long names overlapped £ and % on mobile.
+    - Fix: label wrapper min-w-0 flex-1, break-words, leading-snug; value column
+      shrink-0, whitespace-nowrap, tabular-nums; row items-start with
+      sm:items-center; dot mt-1.5 sm:mt-0; slightly tighter w-11 for % on small
+      screens, sm:w-12 at sm+.
+    - Desktop at sm+ remains a single horizontal row with centered alignment.
+
+14f) Files quick index (charts + page — add to §13 mental model)
+    frontend/src/components/dashboard/MonthlyFuelPerformanceChart.jsx
+    frontend/src/components/dashboard/VolumeVsPPLChart.jsx
+    frontend/src/components/dashboard/ShopValetMonthlyComboCharts.jsx
+    frontend/src/pages/LatestPetrol.jsx — shell, breakdown lists, sections
+    frontend/src/pages/Comparison.jsx — Site Comparison route
+    .cursor/rules/responsive-design.mdc
+
+14g) Site Comparison — Comparison.jsx (API noise / 500 on page load)
+    Problem: On mount, a useEffect called dashboardAPI.getTotalSales(null, null)
+      → GET /api/dashboard/total-sales with no month/year. The backend “all data”
+      path uses fuel_margin_data + monthly_summary; failures fell through to Sage
+      fallback and could return 500 in some DB setups. The result was never used:
+      Header uses showTotalSales={false}; totalSalesAllSites state was unread.
+    Change: Removed the mount fetch, the unused state, and unused sitesAPI /
+      dashboardAPI imports. Comparison data still loads when the user sets
+      filters and Apply in SiteComparison (its own API calls with date range and
+      sites).
+
+14h) Mobile chart horizontal scroll removal — ALL chart components
+    Files: MonthlyFuelPerformanceChart.jsx, VolumeVsPPLChart.jsx,
+           ShopValetMonthlyComboCharts.jsx, MonthlyPerformanceChart.jsx
+    - Removed `overflow-x-auto`, `overscroll-x-contain`, `touch-pan-x`
+      from mobile chart containers.
+    - Removed `mobileScrollPlotPx` fixed-width expansion that made charts
+      wider than the viewport.
+    - Removed `min-w-[600px]` from MonthlyPerformanceChart inner wrapper.
+    - All chart containers now use `overflow-x-hidden` and `w-full` mobile.
+    - Desktop view unchanged.
+
+14i) Mobile compact Y-axes, smaller bars/fonts — Fuel, Volume vs PPL,
+     Shop, Coffee & Valet charts
+    Files: MonthlyFuelPerformanceChart.jsx, VolumeVsPPLChart.jsx,
+           ShopValetMonthlyComboCharts.jsx
+
+    Dimension          | Before (mobile) | After (mobile)
+    -------------------|-----------------|----------------
+    Left Y-axis width  | 64px            | 40px
+    Right Y-axis width | 68px            | 38px
+    Chart margins      | varied          | { top:4, right:4, left:0, bottom:46 }
+    Bar size           | 20px            | 11px (12 months fit)
+    X-axis font        | 12px            | 9px, angle -45°, height 46px
+    Axis labels        | outside         | insideLeft/Right 9px
+    Legend font         | 13px            | 10px, tighter gaps
+    Plot height        | 240px           | 280px
+
+    Desktop unchanged.
+
+14j) Gross PPL and PPL after O/H chart — PPLComparisonChart.jsx
+    - `formatMonthAxisTick` import: "Jan 2025" → "Jan 25" on mobile.
+    - X-axis: 9px font, -45° angle, 46px height, `minTickGap: 0`.
+    - Y-axis width: 52px → 40px on mobile.
+    - Chart margins: `{ top:8, right:4, left:0, bottom:46 }` on mobile.
+    - Legend: 10px font, tighter gap.
+    - Removed unused `denseMobilePpl` variable.
+    - Desktop unchanged.
+
+14k) Site ROI Trend Over Time chart — LatestPetrol.jsx
+    - `formatMonthAxisTick` import: "Jan 2025" → "Jan 25" on mobile.
+    - Left Y-axis (EBITDA): 66px → 62px final (widened for "£1.10M" ticks).
+    - Right Y-axis (ROI %): 68px → 52px final.
+    - Chart margins: `{ top:4, right:4, left:0, bottom:46 }` on mobile.
+    - Chart height: 460px → 320px on mobile.
+    - Rotated axis titles dx adjusted to sit clear of tick numbers:
+      EBITDA (dx -48, left edge), ROI % (dx +38, right edge).
+    - Mobile tick font: 9px. Labels 10px bold.
+    - Mobile tooltip: moved out of chart container into CardContent header
+      area (top: -48, right: 8) with `sm:hidden` — horizontal EBITDA/ROI
+      rows, 9px font, no Investment/Net lines. Desktop tooltip unchanged.
+    - Desktop unchanged.
+
+14l) Monthly Overhead Cost Trends chart — OverheadTrendsChart.jsx
+    MOBILE:
+    - Chart height: 460px → 320px.
+    - Bottom margin: 68–76px → 46px.
+    - X-axis font: 12px → 9px; angle -55° → -45°; height 72–78px → 46px.
+    - Y-axis width: 52px → 44px; tick font 12px → 10px.
+    - "Cost (£)" side-label column: 14px → 18px wide, font 10px, color
+      foreground (was muted-foreground, too faint).
+    - Legend height: 48px → 36px; font 13px → 10px; tighter gaps.
+
+    DESKTOP FIXES (lg+):
+    - Moved legend OUTSIDE `<AreaChart>` SVG. When 20+ categories selected
+      Recharts legend grew to 200px+ and overlapped Y-axis ticks.
+    - Custom `<div>` legend above chart: flex-wrap, colour dots + labels,
+      always outside SVG so it can never overlap chart area.
+    - `desktopLegendHeight` was dynamic (`ceil(length/5)*30`); now fixed
+      since legend is external to chart.
+
+    TOOLTIP:
+    - `shortLabel()` helper: truncates at 17 chars with ellipsis.
+    - Rows section: `maxHeight: 260px` + `overflowY: auto` (20+ categories
+      scroll instead of overflowing page).
+    - Row gap 6→4px, dot 8→7px, body font 13/15→12/11px.
+    - Desktop: `minWidth:200, maxWidth:260`, 2-col grid when > 6 items.
+    - Mobile: full-width single-column below chart (replaced absolute
+      tooltip with TooltipRows component, `twoCol` prop).
+
+14m) Metrics Comparison bar chart (Plotly) — MetricsComparison.jsx
+    - Bottom margin: `b: 10` → `b: 90` on mobile (site name labels clipped).
+    - Tick angle: -90° → -55° (more readable).
+    - Tick font: 8px → 9px.
+    - Hover label font: 13px → 12px (compact, no overflow).
+    - Left margin: 42px → 44px.
+    - Desktop unchanged.
+
+14n) Site Comparison page — ComparisonBarChart, ComparisonMetrics,
+     ComparisonPieCharts, SitePhotoGallery
+    ComparisonBarChart.jsx:
+    - Main `chartHeight` 280→320px mobile.
+    - `innerHeight='80%'` → `chartInnerPx=220px` (percentage caused
+      ResponsiveContainer to overflow card on mobile).
+    - PPL & Labour mini charts: `grid-cols-2` → `grid-cols-1 sm:grid-cols-2`
+      (side-by-side ~175px each was too narrow on mobile; now stacks).
+    - Mini chart `miniChartHeight` 220→200px; Y-axis 32→36px; margins
+      left -8→0, bottom 16→24px mobile.
+
+    ComparisonMetrics.jsx:
+    - Added `labelMobile: "Labour Cost %"` for long "Labour Cost as % of
+      fuel sales" metric. Rendered via `sm:hidden`/`hidden sm:inline`.
+
+    ComparisonPieCharts.jsx:
+    - `isMobile` state + resize listener.
+    - `CHART_TOOLTIP_RESERVE_PX` split: desktop 68px / mobile 44px —
+      freed 24px dead space under arc on mobile.
+    - Chart container: `min(240px, 100vw-48px)` on mobile (was 220px).
+    - `SalesMixLegend` rows: `space-y-3→2`, `px-3→2.5`, `py-2.5→2`,
+      font `text-sm→text-xs sm:text-sm`.
+
+    SitePhotoGallery.jsx:
+    - Replaced stock `buildSlides()` rotation (`/station-X.jpg`) with real
+      site photo `/sites/site-${siteId}.jpg`. Carousel controls hidden
+      when slides.length === 1.
+    - Header `mb-4→mb-3 sm:mb-4`, title `text-lg→text-base sm:text-lg`.
+
+    Desktop unchanged on all.
+
+14o) Header mobile legibility & layout — Header.jsx
+    ITERATIONS (latest wins):
+    1. Company name: replaced 3-line stacked `text-[9px]` spans with single
+       `<span>` scaling `text-[11px]` → `sm:text-xs` → `md:text-sm` →
+       `lg:text-base` + truncate.
+    2. Final mobile layout (2 rows):
+       Row 1: `[≡ hamburger] HIGHWAY STOPS RETAIL LIMITED` — full width,
+         `text-sm font-bold tracking-wide`.
+       Row 2: `[Sales pill] [toggles] [HSRL badge]` — flat `flex-wrap`.
+    3. HSRL badge: `h-6 text-[10px]` mobile → `sm:h-8 lg:h-10`.
+       Hamburger: single instance, `p-1 sm:p-1.5`, icon `w-4 h-4 sm:w-5`.
+    4. Tighter mobile spacing:
+       Outer: `gap-1 py-1.5` (was `gap-2 py-2`).
+       Sales pill: `py-1` (was `py-1.5`).
+       Toggles: `py-0.5 sm:py-1`, `gap-1.5 sm:gap-2`.
+    Desktop (sm+): single horizontal bar, all `sm:`/`md:`/`lg:` classes
+    preserved — no layout change.
+
+14p) Sidebar "Download App" button — Sidebar.jsx
+    - Added `lg:hidden` to Android App download button container.
+    - `isAndroid` UA check alone was insufficient (Chrome DevTools
+      emulation triggers it on desktop). Now hidden at ≥1024px where
+      sidebar is docked.
+
+--------------------------------------------------------------------------------
+15. COLOR PALETTE — FULL REFERENCE
+--------------------------------------------------------------------------------
+
+15a) Primary & semantic colors (light mode, :root HSL values)
+
+    Token               | HSL                | Approx Hex  | Usage
+    --------------------|--------------------|-----------  |-----
+    --primary           | 231 89% 64%        | #4f6df5     | Header pill, buttons, links, HSRL badge gradient start
+    --primary-foreground| 0 0% 100%          | #ffffff     | Text on primary bg
+    --background        | 210 50% 98%        | #f5f8fc     | Page background
+    --foreground        | 210 35% 17%        | #1e2b37     | All body text
+    --card              | 210 45% 99.5%      | #fcfdfe     | Card surfaces
+    --muted             | 210 32% 95%        | #eff2f5     | Muted backgrounds
+    --muted-foreground  | 215 18% 42%        | #607283     | Subtitles, labels, secondary text
+    --border            | 214 28% 88%        | #d5dce5     | Card borders, dividers
+    --destructive       | 0 84% 60%          | #ef4444     | Error states, negative values
+
+15b) Chart colors (HSL, used in Recharts bars/lines/areas)
+
+    Token               | HSL                | Approx Hex  | Used for
+    --------------------|--------------------|-----------  |-----
+    --chart-blue        | 231 89% 64%        | #4f6df5     | Fuel revenue bars, primary data series
+    --chart-green       | 142 71% 45%        | #22c55e     | Volume bars, positive trends
+    --chart-yellow      | 43 96% 56%         | #f59e0b     | Secondary data series
+    --chart-orange      | 25 95% 53%         | #f97316     | Margin %, tertiary data
+    --chart-purple      | 262 83% 58%        | #8b5cf6     | Additional chart data
+
+15c) KPI card icon accent colors (metric-* tokens)
+
+    Token               | HSL                | Approx Hex  | Used on card
+    --------------------|--------------------|-----------  |-----------
+    --metric-blue       | 231 89% 64%        | #4f6df5     | Fuel Volume, EBITDA
+    --metric-green      | 142 71% 45%        | #22c55e     | Total Site Revenue, Gross Profit, Net Sales
+    --metric-yellow     | 43 96% 56%         | #f59e0b     | (available)
+    --metric-orange     | 25 95% 53%         | #f97316     | Profit card
+    --metric-purple     | 262 83% 58%        | #8b5cf6     | Gross PPL
+    --metric-pink       | 330 81% 60%        | #ec4899     | Labour Cost %
+    --metric-red        | 0 84% 60%          | #ef4444     | PPL after O/H
+    --metric-cyan       | 188 78% 41%        | #0891b2     | PPL after O/H combined card
+    --metric-indigo     | 239 84% 67%        | #6366f1     | Avg Sale/Site
+    --metric-teal       | 173 80% 40%        | #14b8a6     | Bank Balance
+
+    Icon wells: bg-metric-*/10 (10% opacity background) + text-metric-* (full color icon)
+
+15d) Overhead Trends chart — 26 category colors (stacked area)
+
+    Category                    | Hex       | Visual
+    ----------------------------|-----------|-------
+    Labour                      | #4f6df5   | Primary blue
+    Rent                        | #7c3aed   | Violet-600
+    Rentals                     | #6d28d9   | Violet-700
+    General Rates               | #8b5cf6   | Violet-500
+    Water Rates                 | #0ea5e9   | Sky-500
+    Heat/Light/Power            | #06b6d4   | Cyan-500
+    Insurance                   | #14b8a6   | Teal-500
+    Mileage                     | #f59e0b   | Amber-500
+    Motor                       | #f97316   | Orange-500
+    Travel                      | #ef4444   | Red-500
+    Royalty                     | #a855f7   | Purple-600
+    Franchise Fees              | #a78bfa   | Violet-400
+    Repairs                     | #84cc16   | Lime-500
+    Printing & Stationery       | #64748b   | Slate-500
+    Advertisement               | #eab308   | Yellow-500
+    Repair & Maintenance        | #22c55e   | Green-500
+    Bank Interest               | #0d9488   | Teal-600
+    Polling Charges             | #d946ef   | Fuchsia-500
+    Credit Charges              | #c026d3   | Fuchsia-600
+    Bad Debts                   | #dc2626   | Red-600
+    Cash U/O                    | #f43f5e   | Rose-500
+    Legal & Professional        | #6366f1   | Indigo-500
+    Telephone                   | #0c4a6e   | Sky-900
+    General Expenses            | #78716c   | Stone-500
+    Loan Interest               | #b91c1c   | Red-700
+    Depreciation                | #475569   | Slate-700
+
+15e) Fuel Performance chart colors
+
+    Data series     | Color     | Hex
+    ----------------|-----------|--------
+    Fuel Revenue    | chart-blue| #4f6df5
+    Sale Volume     | teal-500  | #14b8a6
+    Margin %        | orange-500| #f97316
+
+15f) Glass / surface effects (light mode)
+
+    Background gradients:
+      --bg-gradient-1:       #f3f8ff (light blue wash)
+      --bg-gradient-2:       #eaf3ff (slightly deeper blue)
+      --bg-gradient-3:       #f8fbff (near-white)
+      --bg-gradient-accent:  #b5d9ff (soft blue orb)
+      --bg-gradient-accent-2:#d3c8ff (soft purple orb)
+
+    Glass morphism:
+      --glass-blur:          16px
+      --glass-blur-heavy:    24px
+      --glass-border-rgb:    128 155 185
+
+    Shadows:
+      --shadow-card:         0 1px 3px hsl(0 0% 0%/0.04)
+      --glass-shadow-card:   0 10px 30px rgb(86 120 156/0.14)
+      --glass-shadow-elevated: 0 18px 44px rgb(77 108 142/0.2)
+
+    Card surfaces:
+      .metric-card  bg: hsl(card/0.82), blur 16px, border glass/0.25
+      .chart-card   bg: hsl(card/0.82), blur 16px, border glass/0.25
+      .main-stage   bg: hsl(card/0.97), blur 16px, border glass/0.22
+                    + inset highlight: 0 1px 0 rgb(255 255 255/0.42)
+
+15g) Tooltip colors (all charts)
+
+    Background: hsl(222, 47%, 11%)  — dark navy (readable on both themes)
+    Border:     1px solid hsl(217, 33%, 17%)
+    Text:       #ffffff
+    Radius:     10px
+    Shadow:     0 8px 24px rgba(0,0,0,0.5)
+
+--------------------------------------------------------------------------------
+16. HEADER — FULL LAYOUT (MOBILE & DESKTOP)
+--------------------------------------------------------------------------------
+
+16a) Header container
+    Mobile (<640px):
+      flex flex-col gap-1 bg-transparent px-3 py-1.5
+      Two rows stacking vertically.
+
+    Desktop (sm+ 640px):
+      sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:px-4 lg:px-6
+      Single horizontal bar.
+
+16b) Row 1 — Hamburger + Company Name
+
+    HAMBURGER BUTTON:
+      Mobile:  p-1, icon w-4 h-4
+      Desktop: sm:p-1.5, icon sm:w-5 sm:h-5
+      Container: rounded-lg bg-muted/40 hover:bg-muted/70 border border-border/60
+      Icon: text-foreground (dark blue-grey in light mode)
+
+    COMPANY NAME ("HIGHWAY STOPS RETAIL LIMITED"):
+      Mobile:  text-sm font-bold uppercase tracking-wide text-foreground
+               block truncate, full row width
+      Desktop: sm:text-xs md:text-sm lg:text-base
+               sm:max-w-[min(100%,28rem)] truncate
+
+16c) Row 2 — Sales Pill + Toggles + HSRL Badge
+
+    SALES PILL:
+      Background: bg-primary (blue #4f6df5)
+      Text:       text-primary-foreground (white)
+      Shadow:     shadow-sm
+      Border:     rounded-lg
+
+      Mobile:  px-2 py-1
+               Label: "Sales:" (sm:hidden), value text-sm font-bold
+      Desktop: sm:px-3 lg:px-4 sm:py-2 lg:py-2.5
+               Label: "Total Sales:" (hidden sm:inline), value sm:text-lg
+
+    "SHOW M" TOGGLE:
+      Container: rounded-lg border border-border bg-background
+      Mobile:  px-1.5 py-0.5 gap-1.5 — label hidden
+      Desktop: sm:px-2 sm:py-1 sm:gap-2 — label "Show M" visible (text-sm text-muted-foreground)
+
+    "DARK UI" TOGGLE (when enabled):
+      Same container as Show M toggle.
+      Mobile:  label hidden
+      Desktop: label "Dark UI" visible
+
+    HSRL BADGE:
+      Separator: border-l border-border pl-1.5 sm:pl-2 lg:pl-4
+      Gradient:  bg-gradient-to-br from-primary to-chart-blue (#4f6df5 → #4f6df5 same tone)
+      Text:      font-bold text-primary-foreground (white) tracking-wide
+
+      Mobile:  h-6 px-1.5 text-[10px] rounded-lg
+      Desktop: sm:h-8 lg:h-10 sm:px-2.5 lg:px-3 sm:text-sm lg:text-base sm:rounded-full
+
+--------------------------------------------------------------------------------
+17. SIDEBAR — FULL LAYOUT
+--------------------------------------------------------------------------------
+
+17a) Container
+    Width:      16rem (256px), fixed
+    Height:     100dvh
+    Z-index:    1000
+    Background: bg-sidebar-bg/90 (HSL 210 55% 98% at 90% opacity — frosted white-blue)
+    Effect:     backdrop-blur-xl
+    Border:     border-r border-white/30
+    Animation:  translate-x-0 (open) / -translate-x-full (closed)
+                transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
+
+17b) Mobile overlay
+    Classes: fixed inset-0 bg-black/50 z-40 lg:hidden
+    Only shown when sidebar open on mobile/tablet.
+    Desktop (lg+): sidebar is always docked, no overlay.
+
+17c) Nav items
+    Base:    px-4 py-3 rounded-lg text-sidebar-muted (#607283)
+    Hover:   bg-sidebar-accent/10 text-sidebar-foreground
+    Active:  bg-sidebar-accent/15 text-sidebar-foreground font-semibold
+    Icon:    w-5 h-5
+
+17d) Session card (footer)
+    Background: bg-background/70 border border-border/70 rounded-xl
+    Hover:      bg-muted/60
+    Name:       text-sm font-semibold text-sidebar-foreground
+    Role label: text-xs text-sidebar-muted
+    Admin dot:  bg-amber-500/20 text-amber-400 ring-2 ring-amber-500/30
+    User dot:   bg-blue-500/20 text-blue-400 ring-2 ring-blue-500/30
+
+17e) Download App button
+    Visibility: lg:hidden (hidden on desktop, shown on mobile only)
+    Gated by:   isAndroid user-agent check
+
+--------------------------------------------------------------------------------
+18. KPI CARD STYLING — MOBILE vs DESKTOP
+--------------------------------------------------------------------------------
+
+18a) Card container (MetricCard.jsx)
+    Mobile:  rounded-xl p-3 border border-border shadow-sm
+    Desktop: sm:rounded-2xl sm:p-4 lg:p-5
+    Hover:   hover:shadow-md transition-all duration-300
+    Surface: bg-card (glass morphism — see §15f)
+
+18b) Icon container
+    Mobile:  w-8 h-8 rounded-lg
+    Desktop: sm:w-10 sm:h-10 lg:w-11 lg:h-11 sm:rounded-xl
+    Icon:    w-4 h-4 sm:w-5 sm:h-5
+    Colors:  bg-metric-*/10 text-metric-* (per card — see §15c)
+    Hover:   group-hover:scale-110
+
+18c) Typography
+    Title:     text-sm font-semibold uppercase text-muted-foreground
+               sm:text-base
+    Value:     text-[1.75rem] font-bold text-foreground tracking-tight
+               sm:text-[2.1rem]
+    Subtitle:  text-sm text-muted-foreground mt-1
+               sm:text-base sm:mt-1.5
+    Change %:  text-xs — metric-green (positive), destructive (negative),
+               muted-foreground (zero)
+
+18d) Mini sparkline charts inside cards
+    Mobile:  h-16 mt-3
+    Desktop: sm:h-20 sm:mt-4
+    Line stroke: 2.5px, gradient opacity 0.3→0
+    Bar opacity: 0.8, radius [6,6,0,0]
+
+--------------------------------------------------------------------------------
+19. CHART CARD STYLING
+--------------------------------------------------------------------------------
+
+19a) Chart card container
+    Surface: bg-card (glass — see §15f)
+    Padding: p-4 lg:p-6
+    Border:  rounded-xl border border-border/25
+
+19b) Chart heading typography
+    Heading:   text-lg sm:text-xl font-bold text-foreground
+    Subtitle:  text-sm sm:text-base text-foreground/90
+
+19c) Chart tooltips (all Recharts charts)
+    Background: hsl(222,47%,11%) — dark navy
+    Border:     1px solid hsl(217,33%,17%)
+    Text:       white (#fff)
+    Title:      14px (mobile) / 16px (desktop) — bold
+    Body:       13px (mobile) / 15px (desktop)
+    Radius:     10px, shadow 0 8px 24px rgba(0,0,0,0.5)
+
+19d) Axes & grid (all Recharts charts)
+    CartesianGrid: dashed, stroke hsl(var(--muted-foreground)/0.2)
+
+    Mobile axes:
+      X-axis:  9px font, -45° angle, 46px height
+      Y-axis:  40–44px width, 9–10px font
+      Labels:  insideLeft/insideRight, 9–10px font
+
+    Desktop axes (sm+):
+      X-axis:  12–15px font, 0° angle
+      Y-axis:  52–68px width, 13–15px font
+      Labels:  outside or positioned, 12–14px font
+
+    Legend:
+      Mobile:  10px font, tighter gaps
+      Desktop: 13–15px font, icon 10–11px
+
+--------------------------------------------------------------------------------
+20. UI CHANGES — MODALS & CARDS
+--------------------------------------------------------------------------------
+
+20a) Gross Profit Breakdown modal — simplified to 3 rows
+    File: LatestPetrol.jsx
+
+    BEFORE: 6 fuel category rows (Unleaded, Diesel, Super Unleaded,
+            Super Diesel, Adblue, Bunkering & other) + Shop + Coffee &
+            Valet + Total.
+    AFTER:  3 rows only:
+      1. Fuel (combined value + percentage)
+      2. Shop (value + percentage)
+      3. Coffee & Valet profit (value + percentage)
+      + Total gross profit row (bold, bg-primary/5, rounded)
+
+    Layout per row:
+      grid grid-cols-[minmax(0,1fr)_auto_3.5rem] gap-x-2 items-center
+      py-2 text-sm border-b border-border/60
+    Total row: border-primary/25, bg-primary/5, -mx-1, px-1.5, rounded-md
+    Column header: text-[10px] font-semibold uppercase tracking-wide
+      text-muted-foreground, border-b border-border
+
+20b) Total Fuel Volume card — "Bunkering Volume" label
+    - Volume breakdown card now shows "Bunkering Volume" (was "Bunkered
+      Sales") as the label for nominal code 4101 row.
+    - All other fuel grade labels unchanged (Petrol Unleaded, Diesel
+      Unleaded, Petrol Super Unleaded, Diesel Super Unleaded, Adblue).
+
+--------------------------------------------------------------------------------
+21. DEPLOYMENT UI — SUBPATH ROUTING
+--------------------------------------------------------------------------------
+
+15a) Gross Profit Breakdown modal — simplified to 3 rows
+    File: LatestPetrol.jsx
+
+    BEFORE: 6 fuel category rows (Unleaded, Diesel, Super Unleaded,
+            Super Diesel, Adblue, Bunkering & other) + Shop + Coffee &
+            Valet + Total.
+    AFTER:  3 rows only:
+      1. Fuel (combined value + percentage)
+      2. Shop (value + percentage)
+      3. Coffee & Valet profit (value + percentage)
+      + Total gross profit row (bold, bg-primary/5, rounded)
+
+    Layout per row:
+      grid grid-cols-[minmax(0,1fr)_auto_3.5rem] gap-x-2 items-center
+      py-2 text-sm border-b border-border/60
+    Total row: border-primary/25, bg-primary/5, -mx-1, px-1.5, rounded-md
+    Column header: text-[10px] font-semibold uppercase tracking-wide
+      text-muted-foreground, border-b border-border
+
+15b) Total Fuel Volume card — "Bunkering Volume" label
+    - Volume breakdown card now shows "Bunkering Volume" (was "Bunkered
+      Sales") as the label for nominal code 4101 row.
+    - All other fuel grade labels unchanged (Petrol Unleaded, Diesel
+      Unleaded, Petrol Super Unleaded, Diesel Super Unleaded, Adblue).
+
+--------------------------------------------------------------------------------
+16. DEPLOYMENT UI — SUBPATH ROUTING
+--------------------------------------------------------------------------------
+
+16a) Subpath support (dashboard.credentia.biz/hsrl)
+    - All frontend routes now work under /hsrl prefix.
+    - React Router basename set from env: all internal links
+      (/dashboard, /login, /comparison, etc.) resolve correctly
+      under /hsrl/*.
+    - Asset URLs in built HTML reference /hsrl/assets/... so images,
+      JS, CSS load correctly through the subpath.
+    - API calls prefix with /hsrl so /api/* routes resolve correctly.
+
+    For PRL: same codebase with BASE_PATH=/prl — no UI code changes.
+
+--------------------------------------------------------------------------------
+17. FILES QUICK INDEX (UPDATED)
+--------------------------------------------------------------------------------
+  === Pages ===
+  frontend/src/pages/LatestPetrol.jsx   — main dashboard, KPIs, modals, ROI chart
+  frontend/src/pages/Index.jsx          — location dashboard
+  frontend/src/pages/Comparison.jsx     — site comparison
+  frontend/src/pages/MetricsComparison.jsx — Plotly bar chart + table
+
+  === Dashboard Components ===
+  frontend/src/components/dashboard/Header.jsx             — header, toggles, HSRL badge
+  frontend/src/components/dashboard/Sidebar.jsx            — sidebar nav, download button
+  frontend/src/components/dashboard/MetricCard.jsx         — KPI tiles
+  frontend/src/components/dashboard/MonthlyFuelPerformanceChart.jsx — fuel chart
+  frontend/src/components/dashboard/VolumeVsPPLChart.jsx   — volume vs PPL
+  frontend/src/components/dashboard/ShopValetMonthlyComboCharts.jsx — shop/valet combo
+  frontend/src/components/dashboard/MonthlyPerformanceChart.jsx     — monthly overview
+  frontend/src/components/dashboard/PPLComparisonChart.jsx          — PPL comparison
+  frontend/src/components/dashboard/OverheadTrendsChart.jsx         — overhead trends
+  frontend/src/components/dashboard/CardDetailModal.jsx             — breakdown modals
+
+  === Comparison Components ===
+  frontend/src/components/comparison/ComparisonBarChart.jsx  — bar charts
+  frontend/src/components/comparison/ComparisonMetrics.jsx   — metric cards
+  frontend/src/components/comparison/ComparisonPieCharts.jsx — pie charts
+  frontend/src/components/comparison/SitePhotoGallery.jsx    — site photos
+
+  === Config & Styling ===
+  frontend/src/index.css                — :root tokens, body gradient, components
+  frontend/tailwind.config.mjs          — darkMode class, semantic colors
+  frontend/src/contexts/ThemeContext.jsx — theme state, ui-config, localStorage
+  frontend/src/lib/dashboardChartTypography.js — chart px scale (§12b)
+  frontend/vite.config.mjs              — Vite config, BASE_PATH, dark mode
+  frontend/src/App.jsx                  — ThemeProvider, BrowserRouter basename, routes
+
+================================================================================
+END OF update.txt
+================================================================================

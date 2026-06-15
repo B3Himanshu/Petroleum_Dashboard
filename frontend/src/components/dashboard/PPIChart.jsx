@@ -10,11 +10,17 @@ import {
   ReferenceLine,
 } from "recharts";
 import { Filter } from "lucide-react";
+import { useIsSmUp } from "@/hooks/use-mobile";
+import { dashTickPrimary, dashTickSecondary, dashAxisLabel, dashLegendItemClass, dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 
 // No hardcoded data — chart shows API data when available
 const data = [];
 
 export const PPIChart = () => {
+  const smUp = useIsSmUp();
+  const tickX = dashTickPrimary(smUp);
+  const tickY = dashTickSecondary(smUp);
+  const refLabel = dashAxisLabel(smUp);
   const avgPPI = data.length > 0
     ? data.reduce((sum, d) => sum + (d.actualPPI || 0), 0) / data.length
     : null;
@@ -23,10 +29,10 @@ export const PPIChart = () => {
     <div className="chart-card h-[320px] sm:h-[360px] lg:h-[380px] animate-slide-up" style={{ animationDelay: "400ms" }}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2 sm:gap-0">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-foreground">Avg PPI vs Actual PPI (Line chart)</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Data from API when available.</p>
+          <h3 className="dash-chart-heading">Avg PPI vs Actual PPI (Line chart)</h3>
+          <p className="dash-chart-subtitle">Data from API when available.</p>
         </div>
-        <button className="flex items-center justify-center gap-2 px-3 py-2 sm:py-1.5 text-xs sm:text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors touch-manipulation min-h-[36px] sm:min-h-0">
+        <button className="flex items-center justify-center gap-2 px-3 py-2 sm:py-1.5 text-sm sm:text-base text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors touch-manipulation min-h-[36px] sm:min-h-0">
           <Filter className="w-4 h-4" />
           <span className="hidden sm:inline">Filter</span>
         </button>
@@ -36,12 +42,12 @@ export const PPIChart = () => {
         {data.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <CartesianGrid {...dashCartesianGridProps} />
               <XAxis
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickX }}
                 className="sm:text-xs lg:text-sm"
                 interval="preserveStartEnd"
               />
@@ -49,9 +55,9 @@ export const PPIChart = () => {
                 domain={["auto", "auto"]}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickY }}
                 className="sm:text-xs lg:text-sm"
-                width={40}
+                width={44}
               />
               <Tooltip
                 contentStyle={{
@@ -59,18 +65,18 @@ export const PPIChart = () => {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  fontSize: "12px",
-                  padding: "8px",
-                  maxWidth: "180px",
+                  fontSize: "14px",
+                  padding: "10px 12px",
+                  maxWidth: "200px",
                 }}
                 wrapperStyle={{ zIndex: 1000 }}
               />
               <Legend
-                wrapperStyle={{ paddingTop: "8px", fontSize: "11px" }}
-                className="text-xs sm:text-sm"
+                wrapperStyle={{ paddingTop: "8px", fontSize: "14px" }}
+                className="text-sm sm:text-base"
                 iconSize={12}
                 formatter={(value) => (
-                  <span className="text-xs sm:text-sm text-muted-foreground">
+                  <span className={`${dashLegendItemClass()} text-muted-foreground`}>
                     {value === "actualPPI" ? "Actual PPI" : "Avg PPI"}
                   </span>
                 )}
@@ -81,7 +87,7 @@ export const PPIChart = () => {
                   stroke="hsl(var(--chart-purple))"
                   strokeDasharray="5 5"
                   strokeWidth={2}
-                  label={{ value: "Avg PPI", fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                  label={{ value: "Avg PPI", fill: "hsl(var(--muted-foreground))", fontSize: refLabel }}
                 />
               )}
               <Line
@@ -95,7 +101,7 @@ export const PPIChart = () => {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm sm:text-base">
             No data available
           </div>
         )}

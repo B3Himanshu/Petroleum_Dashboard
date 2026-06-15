@@ -1,23 +1,82 @@
 /**
- * Dashboard helpers using Sage transactions table only.
- * Schema: transactions (nominal_code, dept_number, transaction_date, amount).
+ * Dashboard helpers using HSRL_sage_audit_journal table.
+ * Wireframe: wireframe.csv (project root) is the only spec. Do not use PRL Logic Bar csv.
+ * Schema: HSRL_sage_audit_journal (nominal_code, dept_number, sage_date, amount, details, ...).
  * dept_number = site_code in API.
  */
 import { query } from '../config/database.js';
 
-const REVENUE_CODES = ['4000','4001','4002','4003','4008','4011','4400','4901','4904','4907','6101','6102'];
-const FUEL_SALES_CODES = ['4000','4001','4002','4003','4008'];
-const FUEL_PURCHASE_CODES = ['5000','5001','5003','5004','5007','5012','5014'];
-const LABOUR_CODES = ['7000','7006','7007'];
-const OVERHEADS_CODES = ['7103','7100','7200','7801','7905'];
-const COST_CODES = ['5000','5001','5003','5004','5007','5012','5014','5100','5102','5200','6100','7000','7001','7006','7007','7099','7100','7102','7103','7104','7200','7300','7301','7302','7303','7305','7306','7400','7402','7403','7500','7501','7502','7503','7550','7551','7552','7600','7601','7602','7603','7605','7607','7700','7702','7752','7800','7801','7802','7804','7901','7903','7905','8001','8002','8003','8004','8005','8006','8009','8200','8201','8204','8207','8250','8251','9000','9001','9999','7604'];
+const REVENUE_CODES = [
+  '4000','4001','4002','4003','4004','4005','4006','4007',
+  '4008','4009','4010','4011','4012','4013','4015','4016','4017','4018',
+  '4020','4021','4022','4023','4024','4025','4026','4028','4029','4030','4031',
+  '4032','4033','4034','4035','4036','4037','4038','4039',
+  '4100','4101','4102',
+  '4400','4401','4402','4403','4404','4405','4406','4407','4408','4409','4410','4411','4412','4413','4414','4415','4416','4417','4418',
+  '4450','4451','4452','4453','4454',
+];
+const FUEL_SALES_CODES = ['4000','4001','4002','4003','4004'];
+const FUEL_VOLUME_CODES = ['4000','4001','4002','4003','4004','4101']; // 4101 = Bunkered Sales: volume only, not value
+const FUEL_PURCHASE_CODES = ['5000','5001','5002','5003','5004'];
+const LABOUR_CODES = ['7000','7001','7002','7003','7005'];
+const OVERHEADS_CODES = ['7150','7151','7200','7800','7906'];
+const COST_CODES = [
+  '5000','5001','5002','5003','5004','5005','5006','5007','5008','5009','5010','5011','5012','5013','5014','5015','5016','5017','5018','5019',
+  '5020','5021','5022','5023','5024','5025','5026','5028','5029','5030','5031','5032','5033','5034','5035','5036','5037','5039','5041','5042','5043','5044','5050',
+  '7000','7001','7002','7003','7005','7006','7007','7008','7010',
+  '7100','7101','7148','7149','7150','7151','7152','7200','7201','7250','7251','7252',
+  '7300','7301','7351','7352','7353','7354','7400','7401','7402','7403','7404',
+  '7500','7501','7550','7551','7552','7553','7554','7555','7556',
+  '7600','7601','7602','7603','7604','7605','7606','7607','7608','7611','7612',
+  '7700','7701','7702','7704','7705','7750','7751','7752','7753',
+  '7905','7906',
+  '8000','8001','8002','8050','8051','8052','8053','8054','8055',
+  '8100','8101','8150','8151','8152','8153','8154','8155','8156','8157','8158',
+  '8200','8201','8202','8203','8204','8206','8207','8300',
+  '9000','9001','9998','9999',
+];
 
 const REVENUE_SQL = "nominal_code IN ('" + REVENUE_CODES.join("','") + "')";
 const COST_SQL = "nominal_code IN ('" + COST_CODES.join("','") + "')";
 
-// 14 Fuel Profit nominal codes (same as petrolDataSage) — raw sum for Index profit alignment with Latest Petrol
-const FUEL_PROFIT_14_CODES = ['4000','4001','4002','4003','4008','4400','5000','5001','5003','5004','5014','5102','5200','6100'];
+// Fuel Profit nominal codes (same as petrolDataSage) — includes 5041 Fuel Commission and 5046–5049 Stock Movement grades
+const FUEL_PROFIT_14_CODES = ['4000','4001','4002','4003','4004','4005','5000','5001','5002','5003','5004','5005','5041','5046','5047','5048','5049','5050'];
 const FUEL_PROFIT_14_SQL = "TRIM(nominal_code::text) IN ('" + FUEL_PROFIT_14_CODES.join("','") + "')";
+
+/**
+ * 4101 (Bunkered Sales/Accrual) volume parser.
+ * Handles: "Ast-Accrual for UK Fuel-Jan'26/551.30" → +551.30
+ *          "Ast-Rev.Accrual for UK Fuel-Dec'25-4251.51" → -4251.51 (Rev = reversal)
+ */
+function parse4101VolumeFromDetails(details) {
+  if (!details) return 0;
+  const s = String(details).trim();
+  if (!s) return 0;
+
+  let value = 0;
+
+  // Try '/' separator first (unchanged existing logic)
+  const slashIdx = s.lastIndexOf('/');
+  if (slashIdx !== -1) {
+    const num = parseFloat(s.slice(slashIdx + 1).trim().replace(/,/g, ''));
+    if (!isNaN(num)) value = num;
+  }
+
+  // Fallback: trailing number after last '-' e.g. "...Dec'25-4251.51"
+  if (value === 0) {
+    const m = s.match(/-(\d[\d,]*\.?\d*)$/);
+    if (m) {
+      const num = parseFloat(m[1].replace(/,/g, ''));
+      if (!isNaN(num)) value = num;
+    }
+  }
+
+  if (value === 0) return 0;
+
+  // Rev entries are reversals — return as negative
+  const isReversal = /rev/i.test(s);
+  return isReversal ? -value : value;
+}
 
 /**
  * Parse details column: segments separated by | or ; or newline; each segment is "label/volume" (volume in L after /).
@@ -45,9 +104,9 @@ function parseDetailsToVolumeSegments(details) {
 }
 
 /**
- * Build date filter for transactions: transaction_date in given months/years.
+ * Build date filter for transactions: sage_date in given months/years.
  * Returns { sqlFragment, params } for use in WHERE, e.g.:
- *   transaction_date >= $N::date AND transaction_date <= $N+1::date
+ *   sage_date >= $N::date AND sage_date <= $N+1::date
  * or use EXTRACT(MONTH...) IN (...) AND EXTRACT(YEAR...) IN (...)
  */
 function buildMonthYearFilter(monthsArray, yearsArray, paramStart = 2) {
@@ -55,7 +114,7 @@ function buildMonthYearFilter(monthsArray, yearsArray, paramStart = 2) {
   const monthPl = monthsArray.map((_, i) => `$${paramStart + i}`).join(',');
   const yearPl = yearsArray.map((_, i) => `$${paramStart + monthsArray.length + i}`).join(',');
   const params = [...monthsArray, ...yearsArray];
-  const sql = `EXTRACT(MONTH FROM transaction_date)::int IN (${monthPl}) AND EXTRACT(YEAR FROM transaction_date)::int IN (${yearPl})`;
+  const sql = `EXTRACT(MONTH FROM sage_date)::int IN (${monthPl}) AND EXTRACT(YEAR FROM sage_date)::int IN (${yearPl})`;
   return { sql, params };
 }
 
@@ -82,33 +141,33 @@ async function getFuelProfit14SumForDashboard(tbl, siteCodeOrNull, monthsArray, 
  * @param {number[]} yearsArray - years
  * @param {string} [transactionsTable] - optional table name e.g. "transactions" or "\"sage_data\".transactions"
  */
-export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, transactionsTable = 'transactions') {
-  const tbl = transactionsTable || 'transactions';
+export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, transactionsTable = 'HSRL_sage_audit_journal') {
+  const tbl = transactionsTable || 'HSRL_sage_audit_journal';
   const { sql: dateFilter, params: dateParams } = buildMonthYearFilter(monthsArray, yearsArray, 2);
   const allParams = [siteCode, ...dateParams];
 
   const revRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND ${REVENUE_SQL} AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND ${REVENUE_SQL} AND ${dateFilter}`,
     allParams
   );
   const costRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND ${COST_SQL} AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND ${COST_SQL} AND ${dateFilter}`,
     allParams
   );
   const fuelSalesRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
     allParams
   );
   const fuelPurchasesRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') AND ${dateFilter}`,
     allParams
   );
   const labourRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${LABOUR_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${LABOUR_CODES.join("','")}') AND ${dateFilter}`,
     allParams
   );
   const overheadsRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${OVERHEADS_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${OVERHEADS_CODES.join("','")}') AND ${dateFilter}`,
     allParams
   );
 
@@ -124,10 +183,11 @@ export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, tran
   const labourCostPercent = fuelSales > 0 ? (labourCost / fuelSales) * 100 : 0;
 
   // Fuel volume: 1) try volume column, 2) else derive from transaction details (PRL: "Total Fuel Volume" in transaction codes details)
+  // 4101 (Bunkered Sales) is included in volume only — not in value/sales.
   let totalFuelVolume = 0;
   try {
     const volRes = await query(
-      `SELECT COALESCE(SUM(volume), 0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+      `SELECT COALESCE(SUM(volume), 0) as t FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_VOLUME_CODES.join("','")}') AND ${dateFilter}`,
       allParams
     );
     totalFuelVolume = parseFloat(volRes.rows[0]?.t || 0);
@@ -137,12 +197,17 @@ export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, tran
   if (totalFuelVolume === 0) {
     try {
       const detailsRes = await query(
-        `SELECT id, details FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+        `SELECT id, nominal_code, details FROM ${tbl} WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_VOLUME_CODES.join("','")}') AND ${dateFilter}`,
         allParams
       );
       for (const row of detailsRes.rows || []) {
-        const segments = parseDetailsToVolumeSegments(row.details);
-        for (const { volume } of segments) totalFuelVolume += volume;
+        const nc = String(row.nominal_code ?? '').trim();
+        if (nc === '4101') {
+          totalFuelVolume += parse4101VolumeFromDetails(row.details);
+        } else {
+          const segments = parseDetailsToVolumeSegments(row.details);
+          for (const { volume } of segments) totalFuelVolume += volume;
+        }
       }
     } catch (_) {
       // details query or parse failed
@@ -154,7 +219,7 @@ export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, tran
   try {
     profit14 = await getFuelProfit14SumForDashboard(tbl, siteCode, monthsArray, yearsArray);
   } catch (_) {
-    profit14 = Math.abs(netProfit);
+    profit14 = netProfit;
   }
 
   return {
@@ -189,32 +254,32 @@ export async function getMetricsFromSage(siteCode, monthsArray, yearsArray, tran
  * Dashboard metrics from transactions (Sage) aggregated over all sites (no dept_number filter).
  * Same formulas as getMetricsFromSage; used when siteId=all.
  */
-export async function getMetricsFromSageAllSites(monthsArray, yearsArray, transactionsTable = 'transactions') {
-  const tbl = transactionsTable || 'transactions';
+export async function getMetricsFromSageAllSites(monthsArray, yearsArray, transactionsTable = 'HSRL_sage_audit_journal') {
+  const tbl = transactionsTable || 'HSRL_sage_audit_journal';
   const { sql: dateFilter, params: dateParams } = buildMonthYearFilter(monthsArray, yearsArray, 1);
 
   const revRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE ${REVENUE_SQL} AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE ${REVENUE_SQL} AND ${dateFilter}`,
     dateParams
   );
   const costRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE ${COST_SQL} AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE ${COST_SQL} AND ${dateFilter}`,
     dateParams
   );
   const fuelSalesRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
     dateParams
   );
   const fuelPurchasesRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') AND ${dateFilter}`,
     dateParams
   );
   const labourRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE nominal_code IN ('${LABOUR_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE nominal_code IN ('${LABOUR_CODES.join("','")}') AND ${dateFilter}`,
     dateParams
   );
   const overheadsRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM ${tbl} WHERE nominal_code IN ('${OVERHEADS_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM ${tbl} WHERE nominal_code IN ('${OVERHEADS_CODES.join("','")}') AND ${dateFilter}`,
     dateParams
   );
 
@@ -229,10 +294,11 @@ export async function getMetricsFromSageAllSites(monthsArray, yearsArray, transa
   const avgPPL = fuelSales > 0 ? (fuelProfit / fuelSales) * 100 : 0;
   const labourCostPercent = fuelSales > 0 ? (labourCost / fuelSales) * 100 : 0;
 
+  // 4101 (Bunkered Sales) included in volume only — not in value/sales.
   let totalFuelVolume = 0;
   try {
     const volRes = await query(
-      `SELECT COALESCE(SUM(volume), 0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+      `SELECT COALESCE(SUM(volume), 0) as t FROM ${tbl} WHERE nominal_code IN ('${FUEL_VOLUME_CODES.join("','")}') AND ${dateFilter}`,
       dateParams
     );
     totalFuelVolume = parseFloat(volRes.rows[0]?.t || 0);
@@ -242,12 +308,17 @@ export async function getMetricsFromSageAllSites(monthsArray, yearsArray, transa
   if (totalFuelVolume === 0) {
     try {
       const detailsRes = await query(
-        `SELECT id, details FROM ${tbl} WHERE nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+        `SELECT id, nominal_code, details FROM ${tbl} WHERE nominal_code IN ('${FUEL_VOLUME_CODES.join("','")}') AND ${dateFilter}`,
         dateParams
       );
       for (const row of detailsRes.rows || []) {
-        const segments = parseDetailsToVolumeSegments(row.details);
-        for (const { volume } of segments) totalFuelVolume += volume;
+        const nc = String(row.nominal_code ?? '').trim();
+        if (nc === '4101') {
+          totalFuelVolume += parse4101VolumeFromDetails(row.details);
+        } else {
+          const segments = parseDetailsToVolumeSegments(row.details);
+          for (const { volume } of segments) totalFuelVolume += volume;
+        }
       }
     } catch (_) {
       // details query or parse failed
@@ -259,7 +330,7 @@ export async function getMetricsFromSageAllSites(monthsArray, yearsArray, transa
   try {
     profit14All = await getFuelProfit14SumForDashboard(tbl, null, monthsArray, yearsArray);
   } catch (_) {
-    profit14All = Math.abs(netProfit);
+    profit14All = netProfit;
   }
 
   return {
@@ -298,37 +369,37 @@ export async function getSalesDistributionFromSage(siteCode, monthsArray, yearsA
   const allParams = [siteCode, ...dateParams];
 
   const fuelRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM transactions WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM HSRL_sage_audit_journal WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('${FUEL_SALES_CODES.join("','")}') AND ${dateFilter}`,
     allParams
   );
   const shopRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM transactions WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('4400','4901','4904','4907') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM HSRL_sage_audit_journal WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('4008','4009','4010','4011','4012','4013','4015','4016','4017','4018','4020','4021','4022','4023','4024','4025','4026') AND ${dateFilter}`,
     allParams
   );
   const valetRes = await query(
-    `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM transactions WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('6101','6102') AND ${dateFilter}`,
+    `SELECT COALESCE(SUM(amount),0) as t FROM HSRL_sage_audit_journal WHERE (dept_number::text = $1::text OR dept_number = $1) AND nominal_code IN ('4028','4029','4030','4031') AND ${dateFilter}`,
     allParams
   );
 
   return [
     { name: 'Fuel Sales', value: parseFloat(fuelRes.rows[0]?.t || 0) },
     { name: 'Shop Sales', value: parseFloat(shopRes.rows[0]?.t || 0) },
-    { name: 'Valet Sales', value: parseFloat(valetRes.rows[0]?.t || 0) },
+    { name: 'Coffee & Valet', value: parseFloat(valetRes.rows[0]?.t || 0) },
   ];
 }
 
 /**
- * Date-wise (daily) sales for a site in given months/years. Group by transaction_date::date.
+ * Date-wise (daily) sales for a site in given months/years. Group by sage_date::date.
  */
 export async function getDateWiseFromSage(siteCode, monthsArray, yearsArray) {
   const { sql: dateFilter, params: dateParams } = buildMonthYearFilter(monthsArray, yearsArray, 2);
   const allParams = [siteCode, ...dateParams];
 
   const r = await query(
-    `SELECT transaction_date::date as dt, COALESCE(SUM(ABS(amount)),0) as sales
-     FROM transactions
+    `SELECT sage_date::date as dt, COALESCE(SUM(amount),0) as sales
+     FROM HSRL_sage_audit_journal
      WHERE (dept_number::text = $1::text OR dept_number = $1) AND ${REVENUE_SQL} AND ${dateFilter}
-     GROUP BY transaction_date::date ORDER BY dt`,
+     GROUP BY sage_date::date ORDER BY dt`,
     allParams
   );
 
@@ -351,13 +422,13 @@ export async function getMonthlyPerformanceFromSage(siteCode, yearsArray) {
 
   const r = await query(
     `SELECT
-       EXTRACT(MONTH FROM transaction_date)::int as month,
-       COALESCE(SUM(CASE WHEN ${REVENUE_SQL} THEN ABS(amount) ELSE 0 END),0) as net_sales,
-       COALESCE(SUM(CASE WHEN nominal_code IN ('${FUEL_SALES_CODES.join("','")}') THEN ABS(amount) ELSE 0 END),0) as fuel_sales,
-       COALESCE(SUM(CASE WHEN nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') THEN ABS(amount) ELSE 0 END),0) as fuel_purchases
-     FROM transactions
-     WHERE (dept_number::text = $1::text OR dept_number = $1) AND EXTRACT(YEAR FROM transaction_date)::int IN (${yearPl})
-     GROUP BY EXTRACT(MONTH FROM transaction_date)
+       EXTRACT(MONTH FROM sage_date)::int as month,
+       COALESCE(SUM(CASE WHEN ${REVENUE_SQL} THEN amount ELSE 0 END),0) as net_sales,
+       COALESCE(SUM(CASE WHEN nominal_code IN ('${FUEL_SALES_CODES.join("','")}') THEN amount ELSE 0 END),0) as fuel_sales,
+       COALESCE(SUM(CASE WHEN nominal_code IN ('${FUEL_PURCHASE_CODES.join("','")}') THEN amount ELSE 0 END),0) as fuel_purchases
+     FROM HSRL_sage_audit_journal
+     WHERE (dept_number::text = $1::text OR dept_number = $1) AND EXTRACT(YEAR FROM sage_date)::int IN (${yearPl})
+     GROUP BY EXTRACT(MONTH FROM sage_date)
      ORDER BY month`,
     allParams
   );
@@ -390,7 +461,7 @@ export async function getMonthlyPerformanceFromSage(siteCode, yearsArray) {
       { name: 'Sale Volume', data: saleVolumeData },
       { name: 'PPL', data: pplData },
       { name: 'Shop Sales', data: shopSalesData },
-      { name: 'Valet Sales', data: valetSalesData },
+      { name: 'Coffee & Valet', data: valetSalesData },
     ],
   };
 }
@@ -402,13 +473,13 @@ export async function getTotalSalesFromSage(monthsArray, yearsArray) {
   let totalRevenue = 0;
   if (!monthsArray || monthsArray.length === 0 || !yearsArray || yearsArray.length === 0) {
     const r = await query(
-      `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM transactions WHERE ${REVENUE_SQL}`
+      `SELECT COALESCE(SUM(amount),0) as t FROM HSRL_sage_audit_journal WHERE ${REVENUE_SQL}`
     );
     totalRevenue = parseFloat(r.rows[0]?.t || 0);
   } else {
     const { sql: dateFilter, params: dateParams } = buildMonthYearFilter(monthsArray, yearsArray, 1);
     const r = await query(
-      `SELECT COALESCE(SUM(ABS(amount)),0) as t FROM transactions WHERE ${REVENUE_SQL} AND ${dateFilter}`,
+      `SELECT COALESCE(SUM(amount),0) as t FROM HSRL_sage_audit_journal WHERE ${REVENUE_SQL} AND ${dateFilter}`,
       dateParams
     );
     totalRevenue = parseFloat(r.rows[0]?.t || 0);

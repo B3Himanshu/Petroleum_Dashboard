@@ -2,14 +2,20 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Plot from "react-plotly.js";
 import { TrendingUp } from "lucide-react";
 import { dashboardAPI } from "@/services/api";
+import {
+  COFFEE_VALET_REVENUE_LABEL,
+  LEGACY_VALET_REVENUE_LABEL,
+  matchesCoffeeValetRevenueName,
+} from "@/constants/revenueLabels";
 
-
+const VALET_SLICE_COLOR = "#8b5cf6";
 const colorMap = {
-  "Fuel Sales": "#3b82f6",
-  "Bunkered Sales": "#3b82f6",
+  "Fuel Sales": "hsl(var(--chart-blue))",
+  "Bunkered Sales": "hsl(var(--chart-blue))",
   "Non-bunkered Sales": "#10b981",
   "Shop Sales": "#f59e0b",
-  "Valet Sales": "#8b5cf6",
+  [COFFEE_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
+  [LEGACY_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
 };
 
 export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => {
@@ -54,11 +60,11 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
         
         console.log('📊 [OverallSalesPieChart] Received data:', data);
         
-        // Filter out Shop Sales and Valet Sales - only show Fuel Sales
+        // Filter out Shop Sales and Coffee & Valet - only show Fuel Sales
         // Also filter out any items with zero or very small values
         const filteredData = data.filter(item => 
           item.name !== "Shop Sales" && 
-          item.name !== "Valet Sales" &&
+          !matchesCoffeeValetRevenueName(item.name) &&
           item.value > 0.01 // Only include items with meaningful values
         );
         
@@ -316,8 +322,8 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-foreground">Overall Sales</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Sales distribution breakdown</p>
+              <h3 className="dash-chart-heading">Overall Sales</h3>
+              <p className="dash-chart-subtitle">Sales distribution breakdown</p>
             </div>
           </div>
         </div>
@@ -336,11 +342,11 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-foreground">Overall Sales</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Sales distribution breakdown</p>
+            <h3 className="dash-chart-heading">Overall Sales</h3>
+            <p className="dash-chart-subtitle">Sales distribution breakdown</p>
           </div>
         </div>
-        <div className="text-xs sm:text-sm font-semibold text-foreground bg-card/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-border/50 whitespace-nowrap">
+        <div className="text-sm sm:text-base font-semibold text-foreground bg-card/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-border/50 whitespace-nowrap">
           Total: {formatCurrency(total)}
         </div>
       </div>
@@ -358,11 +364,12 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
                 // Add text shadow to pie chart text for better visibility
                 // Also ensure Plotly background is transparent
                 if (graphDiv) {
+                  const pieFs = window.innerWidth < 640 ? "14px" : "16px";
                   const pieTextElements = graphDiv.querySelectorAll('.pie text');
                   pieTextElements.forEach((textEl) => {
                     textEl.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.9), -2px -2px 4px rgba(0, 0, 0, 0.9), 2px -2px 4px rgba(0, 0, 0, 0.9), -2px 2px 4px rgba(0, 0, 0, 0.9)';
                     textEl.style.fontWeight = 'bold';
-                    textEl.style.fontSize = '13px';
+                    textEl.style.fontSize = pieFs;
                   });
                   // Ensure Plotly container background is transparent
                   const plotlyContainer = graphDiv.querySelector('.js-plotly-plot');
@@ -380,11 +387,12 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
                 // Reapply text shadow on updates
                 // Also ensure Plotly background is transparent
                 if (graphDiv) {
+                  const pieFs = window.innerWidth < 640 ? "14px" : "16px";
                   const pieTextElements = graphDiv.querySelectorAll('.pie text');
                   pieTextElements.forEach((textEl) => {
                     textEl.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.9), -2px -2px 4px rgba(0, 0, 0, 0.9), 2px -2px 4px rgba(0, 0, 0, 0.9), -2px 2px 4px rgba(0, 0, 0, 0.9)';
                     textEl.style.fontWeight = 'bold';
-                    textEl.style.fontSize = '13px';
+                    textEl.style.fontSize = pieFs;
                   });
                   // Ensure Plotly container background is transparent
                   const plotlyContainer = graphDiv.querySelector('.js-plotly-plot');
@@ -401,7 +409,7 @@ export const OverallSalesPieChart = ({ siteId, month, months, year, years }) => 
             />
           </div>
         ) : (
-          <div className="text-muted-foreground">No data available</div>
+          <div className="text-muted-foreground text-sm sm:text-base">No data available</div>
         )}
       </div>
     </div>

@@ -33,7 +33,7 @@ export const ValetingCategoriesChart = ({ startDate, endDate }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Valeting by category not in Sage (PRL); no API — show empty until API available
+        // Valeting by category not in Sage (HSRL); no API — show empty until API available
         setChartData([]);
       } catch (err) {
         console.error('❌ [ValetingCategoriesChart] Error:', err);
@@ -116,10 +116,10 @@ export const ValetingCategoriesChart = ({ startDate, endDate }) => {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Car className="w-5 h-5 text-cyan-500" />
-          Valeting Services Mix
+          Coffee &amp; Valet services mix
         </CardTitle>
         <CardDescription>
-          Service breakdown by sales volume. Data from API when available (Sage/PRL).
+          Service breakdown by sales volume. Data from API when available (Sage/HSRL).
         </CardDescription>
       </CardHeader>
       <CardContent>

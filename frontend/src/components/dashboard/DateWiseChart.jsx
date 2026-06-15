@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { dashboardAPI } from "@/services/api";
+import { useIsSmUp } from "@/hooks/use-mobile";
+import { dashTickPrimary, dashTickSecondary, dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 
 // Month number to name mapping
 const MONTH_NAMES = [
@@ -24,6 +26,9 @@ const MONTH_NAMES = [
 ];
 
 export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
+  const smUp = useIsSmUp();
+  const tickX = dashTickPrimary(smUp);
+  const tickY = dashTickSecondary(smUp);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentMonthFilter, setCurrentMonthFilter] = useState(null);
@@ -113,7 +118,7 @@ export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
   return (
     <div className="chart-card h-[320px] sm:h-[360px] lg:h-[380px] animate-slide-up" style={{ animationDelay: "450ms" }}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2 sm:gap-0">
-        <h3 className="text-base sm:text-lg font-semibold text-foreground">Date-Wise Data (Line chart)</h3>
+        <h3 className="dash-chart-heading">Date-Wise Data (Line chart)</h3>
         {shouldShowMonthFilter && (
           <Select 
             value={currentMonthFilter ? currentMonthFilter.toString() : defaultMonthValue.toString()} 
@@ -123,7 +128,7 @@ export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
               console.log('📅 [DateWiseChart] Month filter changed to:', newMonth);
             }}
           >
-            <SelectTrigger className="w-full sm:w-40 bg-background border-border h-9 sm:h-10 text-sm">
+            <SelectTrigger className="w-full sm:w-44 bg-background border-border h-9 sm:h-10 text-sm sm:text-base">
               <SelectValue placeholder="Select Month" />
             </SelectTrigger>
             <SelectContent>
@@ -158,7 +163,7 @@ export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
         <div className="flex flex-col items-center justify-center h-[calc(100%-80px)] sm:h-[85%]">
           <div className="text-muted-foreground mb-2 text-sm sm:text-base text-center px-2">No data available for the selected period.</div>
           {shouldShowMonthFilter && (
-            <div className="text-xs text-muted-foreground text-center px-2">Try selecting a different month from the dropdown above.</div>
+            <div className="text-sm sm:text-base text-muted-foreground text-center px-2">Try selecting a different month from the dropdown above.</div>
           )}
         </div>
       ) : (
@@ -171,20 +176,20 @@ export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
                   <stop offset="95%" stopColor="hsl(var(--chart-blue))" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <CartesianGrid {...dashCartesianGridProps} />
               <XAxis 
                 dataKey="day" 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickX, fontWeight: 600 }}
                 className="sm:text-xs lg:text-sm"
               />
               <YAxis 
                 axisLine={false} 
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickY, fontWeight: 600 }}
                 className="sm:text-xs lg:text-sm"
-                width={50}
+                width={smUp ? 54 : 50}
                 tickFormatter={(value) => {
                   if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                   if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
@@ -197,9 +202,9 @@ export const DateWiseChart = ({ selectedMonths = [], siteId, years = [] }) => {
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
                   boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  fontSize: "12px",
-                  padding: "8px",
-                  maxWidth: "200px",
+                  fontSize: "14px",
+                  padding: "10px 12px",
+                  maxWidth: "220px",
                 }}
                 formatter={(value) => [`£${value.toLocaleString()}`, "Sales"]}
                 labelFormatter={(label) => `Day ${label}`}

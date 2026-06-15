@@ -1,0 +1,519 @@
+================================================================================
+HSRL FRONTEND — COMPLETE UI DESIGN SPECIFICATION (THREE MAIN PAGES)
+================================================================================
+This document lists every visible label, control, chart, table, modal, empty
+state, colour, and persistence key for the production React UI under
+`HSRL_ui/frontend/src`. Routes: `/dashboard`, `/comparison`, `/metrics-comparison`.
+
+Canonical user-facing name for combined valet/coffee revenue: "Coffee & Valet"
+(`constants/revenueLabels.js` — COFFEE_VALET_REVENUE_LABEL). Profit line label:
+"Coffee & Valet profit" (COFFEE_VALET_PROFIT_LABEL). Pie/API may still return
+"Valet Sales" or "Coffee & valet"; those map to the same purple slice colour.
+
+================================================================================
+SECTION A — GLOBAL SHELL (SHARED BY ALL THREE PAGES)
+================================================================================
+
+A.1 Page frame
+  - Root: `min-h-screen bg-background relative`
+  - Sidebar: fixed left, width 16rem (256px), `z-index` 1000, slides in/out with
+    `translate-x` (500ms cubic-bezier). When open on large screens, main content
+    uses `lg:ml-64`; when closed, `lg:ml-0`. Mobile: `ml-0` always.
+  - Mobile overlay when sidebar open: full-screen `bg-black/50 z-40`, tap closes
+    sidebar (lg:hidden only).
+
+A.2 Floating menu (sidebar closed)
+  - Fixed `top-4 left-4 z-[1001]`: rounded button, `bg-sidebar-bg`, border,
+    shadow, `title="Show Sidebar"`, Menu icon.
+
+A.3 Sidebar (`components/dashboard/Sidebar.jsx`)
+  - Top row: Building2 icon in rounded-xl well; brand text "HIGHWAY STOPS RETAIL
+    LIMITED" (text-xl font-bold); close button (X or Menu) with
+    title "Hide Sidebar" / "Show Sidebar".
+  - Section label: "MAIN MENU" (uppercase, tracking-wider, muted).
+  - Nav items (full-width buttons, `sidebar-nav-item`, active state when path
+    matches):
+    * Sparkles icon — "Dashboard" → `/dashboard`
+    * BarChart3 — "Metrics Comparison" → `/metrics-comparison`
+    * GitCompare — "Site Comparison" → `/comparison`
+  - Hidden behind `false &&`: "Location Dashboard" → `/location-dashboard` (not
+    shown in production).
+  - Footer border-t: "Sign out" with LogOut icon → logout + navigate `/login`.
+
+A.4 Header (`components/dashboard/Header.jsx`)
+  - Bar: `h-14 sm:h-16`, `bg-card`, `border-b border-border`,
+    horizontal padding responsive.
+  - Left: flex spacer (no sidebar toggle here — toggle lives in sidebar/floating
+    control).
+  - Right cluster:
+    * When `showTotalSales` true: green primary pill — desktop "Total Sales:",
+      mobile "Sales:", then £ + number + optional M/K unit (from absolute total).
+    * When `onToggleRevenueInMillions` is a function: bordered panel with
+      label "Show M" (hidden on xs) + Switch for millions vs exact formatting.
+    * Border-l: circular avatar "HSRL" (gradient primary → chart-blue).
+
+  Page-specific header wiring:
+  - Dashboard (`LatestPetrol`): showTotalSales true, total from state; Show M
+    switch wired.
+  - Site Comparison: showTotalSales true; total = API all-sites sales (no date
+    filter); no Show M switch passed.
+  - Metrics Comparison: showTotalSales false; no revenue toggle.
+
+A.5 Card / panel styling
+  - Elevated panels: `chart-card` and/or shadcn `Card`.
+  - Icons in titles often use `rounded-lg bg-primary/10` wells with primary-tinted
+    lucide icons.
+  - Frequent motion: `animate-slide-up`, chart scroll-in animations (~1.5s
+    ease-out) via Intersection Observer where implemented.
+
+================================================================================
+SECTION B — PAGE 1: BUSINESS PERFORMANCE DASHBOARD
+================================================================================
+File: `pages/LatestPetrol.jsx`  |  Route: `/dashboard`
+
+B.1 Main column layout
+  - `main`: animated `margin-left` with sidebar; padding `p-3 sm:p-4 lg:p-6`.
+
+B.2 Page header block
+  - Row: icon well (Sparkles, primary) 8–10 size responsive; title
+    "Business Performance Dashboard" (`text-lg` → `lg:text-2xl`); subtitle
+    "Quick Insights, Fuel, Shop, Coffee & Valet & ROI".
+
+B.3 Filters block
+  - Label: "Filters" (text-primary, small → sm base).
+  - Grid `grid-cols-1 lg:grid-cols-2 gap-4`:
+    (1) Panel title "DATE RANGE" (uppercase tracking) + `DateRangePicker`.
+    (2) Panel title "SITES" + `SiteFilterMultiSelect`:
+        - Trigger: outline Button full width (sm: max-w-64), Building2 icon,
+          label "Select all" when none or all sites selected, else
+          "Select site"; ChevronDown.
+        - Popover header: "Select all" / "Clear all" (toggles all pending),
+          "Clear" (empty pending), "Confirm" (primary — applies selection).
+        - Search: magnifier + Input placeholder "Search sites...".
+        - Scroll list: checkbox + site name per row; click row toggles.
+        - Selection is pending until Confirm.
+
+B.4 Section: Quick Insights
+  - Divider: horizontal rules + centred heading "Quick Insights".
+  - Grid: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` gap-3 sm:gap-4.
+
+  Card 1 — Total Site Revenue
+    - Title row: "Total Site Revenue" (muted small); TrendingUp w-4 h-4 green.
+    - Body: large bold total (respects Show M); lines "Fuel:", "Shop:",
+      "Coffee & Valet:"; optional N/A for shop/valet when not numeric.
+    - Link: "View breakdown ->" (emerald) → modal type `site-revenue`.
+    - Card: hover shadow, cursor pointer.
+
+  Card 2 — Total Fuel Volume
+    - Title: "Total Fuel Volume"; Fuel icon blue.
+    - Loading: two pulse bars.
+    - Value: ML/KL or exact litres (toggle); or N/A + "No volume data found for
+      this period."
+    - Link: "View breakdown ->" → `fuel-volume`.
+
+  Card 3 — PPL / margin after overheads (combined)
+    - Title (volume): "PPL & PPL after vending out the OVERHEADS"
+      (no volume): "Fuel margin & margin after vending out the OVERHEADS"
+    - Icon: Droplets cyan.
+    - First line: avg PPL or margin (suffix p or %) or N/A.
+    - Sub-label then second value: "PPL after vending out the OVERHEADS" or
+      "Fuel margin after vending out the OVERHEADS" in blue, or N/A block.
+    - Amber warning when fuel sales exist, overheads > 0, after-OH value === 0.
+    - Link → `ppl-after-overheads`.
+
+  Card 4 — Gross Profit
+    - Title: "Gross Profit"; PoundSterling green.
+    - Headline: sum of three profit components (always additive display).
+    - Lines: "Fuel Profit:", "Shop Profit:", "{Coffee & Valet profit}:"
+    - Link → `net-profit` (modal titled "Gross Profit Breakdown").
+
+  Card 5 — Total Net Profit
+    - Title: "Total Net Profit"; PoundSterling emerald.
+    - Large emerald amount (M/K or exact).
+    - Link → `total-net-profit`.
+
+  Card 6 — Labour Cost as per shop/fuel sales %
+    - Title: "Labour Cost as per shop/fuel sales %"; Users pink.
+    - % coloured green ≤4, yellow ≤5, red >5; N/A if labour < £1.
+    - Sub: "Labour:" and "Fuel:" amounts.
+    - Link → `labour-cost`.
+
+  Card 7 — EBITDA
+    - Title: "EBITDA"; BarChart3 blue.
+    - Value green if ≥0 else red; sub-lines "Gross Profit:", "Misc Income:",
+      "Overheads:".
+    - Link → `ebita`.
+
+  Not rendered (components exist in same file only):
+    - CustomerCountCard — title "Customer Count", description "Transactions
+      (EvoBos when available)", Users cyan.
+    - ROICard — title "ROI", description "(Net Profit / Investment) × 100",
+      body "N/A" / "ROI data not available for now", TrendingUp emerald.
+
+B.5 Section: Fuel
+  - Divider: Fuel icon + "Fuel".
+
+  B.5.1 Card "Monthly Performance Trends (Bar Graph)"
+    - Header: title left; right Popover trigger Button showing truncated filter
+      summary + ChevronDown.
+    - Popover: checkboxes for revenue mix — options exactly:
+      "All", "Fuel", "Shop", "Coffee & Valet" (multi-select).
+    - Content: `MonthlyFuelPerformanceChart`:
+      * RotateViewButton top-right.
+      * ComposedChart: X = month_name (−40°); left Y money; right Y "Vol (ML)"
+        green; bars revenue (#3b82f6), gross profit (#f97316), volume (#22c55e).
+      * Legend names depend on filter (e.g. "Revenue (site)", "Gross Profit", or
+        combined segment names + " Revenue" / " Profit").
+      * Tooltip (dark): month; revenue & profit lines; optional Fuel | Shop |
+        Coffee & Valet profit sub-line; Volume; Avg PPL; PPL after OH (NA if no
+        volume that month).
+      * Loading: "Loading chart data..."; empty: "No data available".
+
+  B.5.2 Fuel Grade Mix (%)
+    - `FuelGradeMixChart`: CardTitle + TrendingUp blue; description about volume
+      vs profit; toggle buttons "Volume" | "Profit" (primary when selected).
+    - Doughnut (Chart.js); centre label "Total (volume)" / "Total (sales value)" /
+      "Total (profit)"; legend rows with £ and %; grade colours from mapped
+      names (Petrol/Diesel/Super/Adblue variants).
+
+  B.5.3 Card "PPL vs Actual PPL vending out OH"
+    - Header: primary well + TrendingUp + title.
+    - `PPLComparisonChart`: if no litre volume — N/A block with explanation.
+      Else LineChart: "Avg PPL" #3b82f6, "PPL After Vending Out Overheads"
+      #10b981; Y ticks with "p"; RotateViewButton; loading / empty messages.
+
+B.6 Section: Shop
+  - Divider: ShoppingBag + "Shop".
+
+  Row 1 — `grid md:grid-cols-2 gap-4`:
+    - Card "Shop Sales": purple ShoppingBag; value green or N/A +
+      "No shop data for selected period"; "View breakdown ->" → `shop-sales`.
+    - Card "Shop Profit": green PoundSterling; loading pulse; or profit red/green
+      with sub-lines "Sales:", "Cost:", "Margin: x%"; or N/A +
+      "No shop profit data for selected period".
+
+  Row 2 — `grid lg:grid-cols-2 gap-4`:
+    - Card "Shop Sales Breakdown": description "Sales by category"; loading
+      "Loading..."; or Total Shop Sales row (border-b) + rows with purple dot,
+      name, £, %; empty "No shop data for selected period".
+    - Card "Shop Cost Breakdown": description "Cost by category"; loading;
+      or Total Shop Cost + green-dot rows + footer "Shop Profit"; empty
+      "No shop cost data for selected period".
+
+  Imported but not mounted on this page: `ShopProductCategoriesChart`,
+  `ShopValetMarginsChart`.
+
+B.7 Section: Coffee & Valet
+  - Divider: Car icon + "Coffee & Valet".
+
+  Row 1 — `md:grid-cols-2`:
+    - Card title "Coffee & Valet" (Car blue): sales total green or N/A +
+      "No Coffee & Valet data for selected period"; breakdown → `valet-sales`.
+    - Card title "Coffee & Valet profit" (PoundSterling green): same pattern as
+      shop profit (Sales/Cost/Margin) or N/A + "No Coffee & Valet profit data...".
+
+  Row 2 — `lg:grid-cols-2 mt-4`:
+    - "Coffee & Valet breakdown": description "Sales by category"; Total Coffee &
+      Valet row; blue-dot lines; empty message.
+    - "Coffee & Valet cost breakdown": description "Cost by category"; Total
+      Coffee & Valet cost; green-dot lines; footer uses COFFEE_VALET_PROFIT_LABEL;
+      empty message.
+
+B.8 Section: Return On Investment
+  - Centred divider: title "Return On Investment", subtitle "Cash".
+
+  Block 1 — `grid grid-cols-1 gap-4 mb-6`:
+    - Card "Site ROI Trend Over Time":
+      Description: "EBITA (£, left) and ROI % (right) by month."
+      Optional pill: "Total EBITA: …" (blue tint).
+      Chart: Recharts ComposedChart — Area/Line "EBITA" green (#22c55e), Line
+      "ROI %" blue (#3b82f6); left axis "EBITA (£)", right "ROI %"; grid dashed;
+      tooltip dark: EBITA, ROI %, Investment, Net profit (per month row).
+      Loading pulse; empty "No data" + longer guidance.
+    - Card "Top Performing Sites": badge "Best Performers" (green); embeds
+      `PetrolTopPerformingSitesTable` with hideTitle.
+
+  Block 2 — `grid grid-cols-1 gap-4 mb-6`:
+    - Card "Sites Needing Improvement": badge "Needs Attention" (orange);
+      `PetrolSitesNeedingImprovementTable` hideTitle.
+
+  Top Performing Sites table (when data):
+    - Columns: Rank (trophy/medal/award for 1–3, else number circle), Site Name,
+      Net Sales, Profit (tooltip: revenue − cost, shown positive), Fuel margin %
+      (tooltip: fuel profit as % of fuel sales) — values `row.ppl` as % or N/A.
+    - Striped rows; hover muted.
+    - Empty: "No rankings for this date range." + hint sites 6–45.
+
+  Sites Needing Improvement table (when data):
+    - Subtitle when title shown: "Bottom 5 by profit (lowest performers)."
+    - Same column headers as top table; destructive-tinted striping/hover;
+      rank badge destructive outline.
+    - Empty: same as top table empty copy.
+
+B.9 Section: Overheads
+  - Divider: "Overheads" (text only).
+
+  `grid lg:grid-cols-2 gap-4 mb-6`:
+
+  Left — Card "Overhead Cost Breakdown"
+    - BarChart3 indigo; description starts "Cost (£). Wages and overheads..."
+    - Body: grouped £ lines from OH_GROUPS (Wages from labour total; others from
+      nominal map). Default visible groups: wages, rentAndRates, generalRates,
+      creditCharges. "More Overheads" dropdown to toggle additional categories
+      from full OH_GROUPS list (all labels enumerated in code: Rent & Rates,
+      General Rates, Water Rates, Heat Light & Power, Insurance, Mileage, Motor,
+      Travel, Royalty, Franchisee Fees, Repairs & Renewals, Printing and
+      Stationery, Advertisement & Business Promotion, Repair & Maintenance, Bank
+      Interest and Charges, Polling Charges, Credit Card Charges, Bad Debts,
+      Cash Under/Over, Legal & Professional, Telephone Costs, General Expenses,
+      Loan Interest, Overdraft Interest, Arrangement Fees, Guarantee Fees,
+      Depreciation).
+    - Empty: "No overhead data for the selected date range."
+
+  Right — Card "Monthly Overhead Cost Trends"
+    - Description: "Cost (£). Overhead costs by category over time"
+    - `OverheadTrendsChart`: category colour map per ALL_CATEGORIES; multi-series
+      area/stack behaviour; dropdown to show/hide categories (default same four
+      as breakdown); RotateViewButton; uses `showInMillions` from header toggle.
+
+B.10 Dialog modals (`CardDetailModal` — Dialog, titled header bar, scroll body,
+     default max-w-sm, some max-w-md / max-w-4xl / max-w-6xl)
+
+  Trigger map (user actions → type):
+    - site-revenue, fuel-volume, ppl-after-overheads, net-profit (Gross Profit),
+      total-net-profit, labour-cost, ebita, shop-sales, valet-sales.
+
+  Modal: "Total Site Revenue Breakdown"
+    - Fuel Sales; indented "Fuel by product (value £)" from fuelByNominal; indented
+      "Other income (value £)"; Shop Sales (+ subValue if N/A: "Not managed by
+      the client (HSRL)"); indented "Shop by product"; Coffee & Valet line (+ same
+      N/A subValue); indented "Coffee & Valet by product (value £)"; TOTAL REVENUE.
+
+  Modal: "Shop Sales Breakdown" (shop-sales)
+    - Total + "Shop by product (value £)"; or "No shop breakdown data".
+
+  Modal: "Shop Sales Breakdown" (type `shop-section-breakdown`)
+    - Same pattern as shop-sales: "Total Shop Sales" + subsection "By category".
+    - No `openBreakdown("shop-section-breakdown")` in the codebase — modal is
+      wired but unreachable from the UI unless a trigger is added.
+
+  Modal: "Coffee & Valet — breakdown"
+    - Total + by product; or "No Coffee & Valet breakdown data".
+
+  Modal: "Total Fuel Volume — Breakdown" (max-w-md)
+    - Sections "Volume by categories" (nominal lines); "Volume by site (L)"
+      (hides zero-volume sites except HEAD OFFICE); or prompt to select range.
+
+  Modal: "Gross Profit Breakdown" (net-profit)
+    - Intro: Gross Profit = Fuel + Shop + Coffee & Valet profit.
+    - Revenue block (4000–4004, 4100–4102) + Total Revenue.
+    - Cost block (5000–5005) + Total Cost.
+    - Fuel Profit total line.
+
+  Modal: "Total Net Profit — Breakdown"
+    - Formula line: EBITDA − Depreciation − Loan Interest − Corporation Tax (9000).
+    - EBITDA; Depreciation (8200–8207) lines + total; Loan Interest header with
+      note on 7751 exclusion + lines + total; Corporation Tax (9000); border
+      Total Net Profit.
+
+  Modal: "Labour Cost Breakdown"
+    - Intro: Labour Cost as a percentage of Fuel Sales.
+    - Lines for codes 7000,7001,7005 with transaction counts; Total Labour
+      (7000+7001+7005); Fuel Sales; Labour Cost % total.
+
+  Modal: "EBITDA — Breakdown"
+    - Formula paragraph; Gross Profit section (Fuel, Shop, Coffee & Valet,
+      Total Gross Profit); Miscellaneous Income; Overheads (excl. depr/loan);
+      Excluded (Depreciation, Loan Interest); EBITDA total.
+
+  Modal: "PPL after Overheads — Breakdown" OR "Fuel margin after Overheads —
+    Breakdown"
+    - Long explanatory paragraph (volume vs sales basis).
+    - Optional Wages line; non-zero overhead lines excluding PPL_TOTAL_EXCLUDED
+      nominals; total Overheads; highlighted "Fuel profit after overheads (£)"
+      equation; Avg PPL / OH Deduction / PPL after overheads (or margin labels).
+
+  Bunkered modals (wired in JSX; no `openBreakdown(...)` call in repo — reserved):
+    - "Fuel Supply Type - Monthly Comparison" → BunkeredNonBunkeredComparison
+    - "Net Sales - Monthly Comparison" → BunkeredNonBunkeredSalesComparison
+    - "Profit - Monthly Comparison" → BunkeredNonBunkeredProfitComparison
+
+================================================================================
+SECTION C — PAGE 2: SITE COMPARISON
+================================================================================
+Files: `pages/Comparison.jsx`, `components/comparison/SiteComparison.jsx`
+Route: `/comparison`
+
+C.1 Page chrome
+  - Title: "Site Comparison"; subtitle "Compare performance metrics between two
+    sites"; GitCompare icon in primary well.
+  - Main: `w-full min-w-0 max-w-full`, padding `py-4 sm:px-4 lg:p-6`.
+  - Header: total sales pill (all sites, all time fetch on mount).
+
+C.2 SiteComparison — filter card
+  - Header: "Comparison Filters" + Filter icon; optional "Clear" (X, ghost) when
+    any site or filter active; "Apply Filters" primary (disabled if: no site1,
+    no site2, same site twice, OR no pending change vs applied).
+  - Grid `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4`:
+    - Date range nested chart-card + DateRangePicker.
+    - Site 1: label "Site 1", Select placeholder "Select first site", items =
+      site names from filtered HSRL list.
+    - Site 2: label "Site 2", placeholder "Select second site".
+  - Yellow banner when pending site1 === pending site2 (both set): "Please select
+    two different sites for comparison."
+
+C.3 Period line
+  - When canCompare: "Showing data for: {Month Year}" or "{Start – End Year}".
+
+C.4 Photo galleries
+  - When two distinct applied sites: `grid lg:grid-cols-2` of `SitePhotoGallery`.
+  - Each gallery: title site name; "{n} photos available"; main aspect-video
+    image; prev/next ghost buttons on sides; counter "i / n"; thumbnail strip;
+    loading "Loading photos..."; empty Image icon + "No photos available".
+    Images: `/station-{1..6}.jpg` rotated by siteId.
+
+C.5 ComparisonBarChart (order: bar block, then pie, then metrics in JSX — note
+    SiteComparison renders Bar → Pie → Metrics)
+  - Loading: "Loading chart data..." in chart-card h-[420px].
+
+  Chart set A — "Financial & Volume Metrics"
+    Subtitle: "Sales, gross profit (fuel + shop + Coffee & Valet), and fuel
+    volume"
+    - Categories: Net Sales, Gross Profit, Fuel Volume (currency / currency /
+      volume tooltips).
+    - Bars: site1 #3b82f6, site2 #10b981, rounded top, Legend circles.
+
+  Chart set B — single chart-card split `md:grid-cols-2`:
+    Title: with volume "PPL after vending out & Labour Cost"; else
+      "Margin after vending out & Labour Cost".
+    Subtitle: PPL vs margin explanation.
+    - Left BarChart: one category — "Actual PPL" (p) or "Fuel Margin" (%).
+    - Right BarChart: "Labour Cost as % of Fuel Sales" with % tooltips including
+      labour £ and fuel £ per site.
+    - Same tooltip chrome as Chart A.
+
+C.6 ComparisonPieCharts
+  - Two columns `lg:grid-cols-2 gap-6`.
+  - Per site card: gradient icon well + TrendingUp; site name title; subtitle
+    "Sales Distribution"; Total £ pill; doughnut 240px; centre "Total Sales" +
+    amount; custom legend cards per slice (£ + % to 3dp); footnote "Amounts: Fuel /
+    Shop / Coffee & Valet · % = share of this mix (sums to 100%)".
+  - Loading: two pulsing chart-cards "Loading chart data...".
+  - Empty slice set: "No data available".
+
+C.7 ComparisonMetrics
+  - Title "Performance Comparison"; subtitle "Side-by-side comparison of key
+    metrics".
+  - Five metric rows (3-column grid on md): label | site1 | site2; animated
+    values on first view.
+  - Labels: Net Sales; Gross Profit (title attr: fuel + shop + Coffee & Valet);
+    Total Fuel Volume; Actual PPL or Fuel Margin; Labour Cost as % of fuel sales.
+  - Footer "Comparison Summary": Total Sales Difference, Gross Profit Difference,
+    and Volume Difference (third stat omitted if neither site has fuel volume).
+
+C.8 Empty state (no compare)
+  - chart-card h-64 sm:h-96: Filter icon in primary circle; "Select Two Sites to
+    Compare"; "Choose two different sites from the filters above...".
+
+C.9 Persistence
+  - `sessionStorage` key `comparisonFilters_v2`: site1, site2, startDate, endDate.
+
+================================================================================
+SECTION D — PAGE 3: METRICS COMPARISON
+================================================================================
+File: `pages/MetricsComparison.jsx`  |  Route: `/metrics-comparison`
+
+D.1 Page chrome
+  - Title "Metrics Comparison"; subtitle "Compare all sites by selected metrics";
+    BarChart3 well.
+  - Main margin animation + padding `p-4 lg:p-6`.
+  - Header: no total sales.
+
+D.2 Default dates / metrics
+  - `getComparisonPagesDefaultDateRange()` (May–Dec style default — see lib).
+  - Default metrics array: sales, profit, saleVolume, ppl (all four).
+
+D.3 Filters card
+  - Header: Filter icon + "Filters".
+  - Grid `md:grid-cols-2`: Date range card ("DATE RANGE" + DateRangePicker);
+    "Select Metrics" label + MetricsMultiSelect:
+      Trigger: outline combobox; text "Select metrics" | single label | "All
+      metrics" | "{n} selected"; ChevronDown rotates when open.
+      Popover: "Select all" / "Clear all" top button; list of four options with
+      checkbox + colour dot + label (Sales, Gross Profit, Sale Volume, PPL).
+  - Footer: "Apply Filters" Button with Filter icon (full width on mobile);
+    disabled when `pendingMetrics.length === 0`.
+  - On apply: persists `metricsComparisonFilters_v2` (dates + metrics).
+
+D.4 After apply — shared heading area (charts view when viewMode charts)
+  - H3: "{n} site(s)"; paragraph: comma-separated display labels (PPL becomes
+    "Margin" when `noFuelVolumeAcrossSites`).
+  - Toggle: Charts (BarChart3) | Table (TableIcon); labels responsive ("Chart" on
+    xs for charts button).
+
+D.5 Charts view — site cards grid
+  - Only when `appliedMetrics.length > 0 && sitesData.length > 0 && viewMode ===
+    'charts'`.
+  - Loading: 8 pulsing chart-card h-80.
+  - Else: `grid-cols-1 sm:2 lg:3 xl:4` of `SiteCard`:
+    * Image h-48, station-N.jpg by index; optional trend badge (not passed from
+      Metrics page — no badge).
+    * MapPin + truncated name + "Site #id".
+    * 2×2 metrics: Sales (#3b82f6); Gross Profit (#10b981); Volume (#f59e0b);
+      PPL "PPL (after OH)" or "PPL" vs "Margin %" (#8b5cf6) from volume.
+
+D.6 Charts view — Plotly bar chart
+  - Card: "Bar Chart Comparison"; subtitle "Visual comparison of selected metrics
+    across all sites".
+  - Plot title: "Metrics Comparison Across All Sites"; X "Sites"; Y "Value";
+    barmode grouped if multiple metrics; transparent backgrounds; legend position
+    switches on mobile; hover dark label; heights 350/400/500 by breakpoint.
+  - Loading: "Loading chart data..." in fixed-height container.
+
+D.7 Table view
+  - Same site count + metric subtitle + Charts/Table toggle.
+  - chart-card: loading "Loading comparison data..."; empty "No data available.
+    Please select metrics and filters."
+  - Table headers: Site Name (sort control); for each selected metric a right-
+    aligned column with colour dot + label (Volume short on sm); PPL column
+    header "Margin" when no volume globally.
+  - Body: zebra `bg-card/30`; cell colours match metric hex; PPL cells show
+    "x.xx p" or "x.xx%".
+  - Sort: stacked up/down ghost buttons; active state primary tint; aria-labels.
+
+D.8 Empty — no metrics applied
+  - chart-card h-96: BarChart3 circle; "Select Metrics to Compare"; body text
+    about choosing metrics in filter.
+
+D.9 Persistence
+  - `metricsComparisonFilters_v2`: startDate, endDate, metrics.
+  - `metricsComparisonViewMode`: "charts" | "table".
+
+D.10 Site list source
+  - API sites merged with ALL_HSRL_SITES; `filterSitesForComparisonPages`.
+
+================================================================================
+SECTION E — COLOUR QUICK REFERENCE (UI HEX)
+================================================================================
+  #3b82f6 — primary series / Sales / Site 1 bars / Avg PPL line / many blues
+  #10b981 — profit / Site 2 bars / PPL after OH line
+  #f59e0b — volume / shop slice in pies
+  #f97316 — gross profit bars (monthly chart)
+  #22c55e — volume bar (monthly), EBITA (ROI trend)
+  #8b5cf6 — PPL / margin / Coffee & Valet pie slice
+  Comparison tooltip background hsl(222,47%,11%), border hsl(217,33%,17%)
+
+================================================================================
+SECTION F — COMPONENTS NOT ON DASHBOARD PAGE (REFERENCE)
+================================================================================
+  LatestPetrol.jsx: CustomerCountCard, ROICard (unused JSX).
+  LatestPetrol.jsx imports: ShopProductCategoriesChart, ShopValetMarginsChart
+    (unused). If mounted elsewhere, titles: "Shop Product Categories" with
+    description about API; margins chart titles "Shop & Coffee & Valet margins
+    trend" / "Coffee & Valet margin" with line series Shop Margin #f59e0b,
+    Coffee & Valet margin #8b5cf6.
+  Bunkered modals: present without current UI trigger in codebase.
+
+================================================================================
+END OF SPECIFICATION
+================================================================================

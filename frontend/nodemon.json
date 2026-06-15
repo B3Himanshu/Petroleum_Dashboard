@@ -1,0 +1,7 @@
+{
+  "watch": ["vite.config.mjs", "tailwind.config.js", "postcss.config.js", "index.html"],
+  "ignore": ["node_modules", "dist"],
+  "ext": "js,mjs,cjs,json,html,ts",
+  "delay": "400",
+  "exec": "vite"
+}

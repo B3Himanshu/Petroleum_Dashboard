@@ -12,8 +12,11 @@ import {
 import { TrendingUp } from "lucide-react";
 import { dashboardAPI } from "@/services/api";
 import { format, parseISO, getDaysInMonth, isWithinInterval } from "date-fns";
+import { dashCartesianGridProps } from "@/lib/dashboardChartTypography";
+import { useIsSmUp } from "@/hooks/use-mobile";
 
 const DateWiseDataChartComponent = ({ startDate, endDate }) => {
+  const smUp = useIsSmUp();
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [animationProgress, setAnimationProgress] = useState(0);
@@ -226,8 +229,9 @@ const DateWiseDataChartComponent = ({ startDate, endDate }) => {
   // Custom X-axis tick to show every 5th date
   const CustomXAxisTick = (props) => {
     const { x, y, payload, index } = props;
-    // Show every 5th date or all if less than 15 dates
-    const showLabel = chartData.length <= 15 || index % 5 === 0;
+    // Desktop: every 5th when many days; mobile: every 7th to limit overlap (all if ≤15 days)
+    const showLabel =
+      chartData.length <= 15 || (smUp ? index % 5 === 0 : index % 7 === 0);
     
     if (!showLabel) return null;
     
@@ -266,12 +270,7 @@ const DateWiseDataChartComponent = ({ startDate, endDate }) => {
             data={animatedData}
             margin={{ top: 15, right: 30, left: 0, bottom: 60 }}
           >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))" 
-              vertical={false}
-              opacity={0.2}
-            />
+            <CartesianGrid {...dashCartesianGridProps} vertical={false} />
             <XAxis 
               dataKey="dateLabel" 
               axisLine={false} 
@@ -325,10 +324,10 @@ const DateWiseDataChartComponent = ({ startDate, endDate }) => {
               yAxisId="left"
               type="monotone" 
               dataKey="fuel_volume"
-              stroke="#3b82f6"
+              stroke="hsl(var(--chart-blue))"
               strokeWidth={2.5} 
               dot={false}
-              activeDot={{ r: 5, fill: "#3b82f6", stroke: "#ffffff", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: "hsl(var(--chart-blue))", stroke: "#ffffff", strokeWidth: 2 }}
               connectNulls={false}
               isAnimationActive={true}
               animationDuration={800}

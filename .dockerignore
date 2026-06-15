@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Node modules (rebuilt inside Docker)
+node_modules
+backend/node_modules
+frontend/node_modules
+
+# Frontend dev files (only dist is needed)
+frontend/.env*
+
+# Env files (pass at runtime, never bake into image)
+backend/.env
+.env
+
+# Logs & exports
+backend/exports/
+backend/data/*.xlsx
+volumne/
+
+# Dev/test files
+backend/test/
+backend/scripts/
+*.test.js
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude / docs
+.claude/
+*.md
+*.txt
+*.csv
+*.xlsx

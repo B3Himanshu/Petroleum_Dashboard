@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
 export const ROITrendChart = ({ startDate, endDate }) => {
@@ -67,7 +68,7 @@ export const ROITrendChart = ({ startDate, endDate }) => {
                 margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                 layout="vertical"
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid {...dashCartesianGridProps} vertical={false} />
                 <XAxis type="number" tick={{ fontSize: 12 }} />
                 <YAxis
                   dataKey="site"

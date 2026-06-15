@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { TrendingUp } from "lucide-react";
+import { dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
 export const ShopValetMarginsChart = ({ startDate, endDate, mode }) => {
@@ -80,10 +81,10 @@ export const ShopValetMarginsChart = ({ startDate, endDate, mode }) => {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-green-500" />
-          {showOnlyValet ? "Valet Margin" : "Shop & Valet Margins Trend"}
+          {showOnlyValet ? "Coffee & Valet margin" : "Shop & Coffee & Valet margins trend"}
         </CardTitle>
         <CardDescription>
-          {showOnlyValet ? "Valet margin over time" : "Weekly profit margin comparison"}
+          {showOnlyValet ? "Coffee & Valet margin over time" : "Weekly profit margin comparison"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -91,15 +92,23 @@ export const ShopValetMarginsChart = ({ startDate, endDate, mode }) => {
           <div className="h-80 bg-muted animate-pulse rounded-lg" />
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid {...dashCartesianGridProps} vertical={false} />
               <XAxis
                 dataKey="week"
                 tick={{ fontSize: 12 }}
                 interval={Math.max(0, Math.floor(chartData.length / 6))}
               />
               <YAxis
-                label={{ value: 'Margin %', angle: -90, position: 'insideLeft' }}
+                width={72}
+                label={{
+                  value: "Margin %",
+                  angle: -90,
+                  position: "left",
+                  offset: 6,
+                  dx: -4,
+                  style: { fontSize: 12, fontWeight: 600 },
+                }}
                 tick={{ fontSize: 12 }}
                 domain={[0, 45]}
               />
@@ -127,7 +136,7 @@ export const ShopValetMarginsChart = ({ startDate, endDate, mode }) => {
                 dot={{ fill: '#8b5cf6', r: 4 }}
                 activeDot={{ r: 6 }}
                 strokeWidth={2}
-                name="Valet Margin"
+                name="Coffee & Valet margin"
               />
             </LineChart>
           </ResponsiveContainer>

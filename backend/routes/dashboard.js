@@ -11,11 +11,7 @@ import {
 
 const router = express.Router();
 
-// Same transactions table as petrol-data (Latest Petrol) so Index shows same data source
-const TRANSACTIONS_SCHEMA = process.env.DB_TRANSACTIONS_SCHEMA || process.env.PETROL_DATA_SCHEMA || null;
-const TRANSACTIONS_TABLE = (TRANSACTIONS_SCHEMA && /^[a-zA-Z0-9_]+$/.test(TRANSACTIONS_SCHEMA))
-  ? `"${TRANSACTIONS_SCHEMA}".transactions`
-  : 'transactions';
+const TRANSACTIONS_TABLE = 'HSRL_sage_audit_journal';
 
 /**
  * Helper function to convert date range to year/month arrays for fuel_margin_data queries
@@ -46,14 +42,13 @@ function getYearMonthRangeFromDates(startDate, endDate) {
   };
 }
 
-// Dept number (site_code) → display name for site-rankings (aligned with testScript.js / petrolDataSage)
+// HSRL Department number (0-19) -> display name
 const DEPT_TO_SITE_NAME = {
-  6: 'Manor Service Station', 7: 'Hen And Chicken SS', 9: 'Salterton Road SS', 10: 'Lanner Moor Garage',
-  11: 'Luton Road SS', 14: 'Kings Lane SS', 17: 'Delph SS', 18: 'Saxon Autopoint SS', 19: 'Jubits Lane SS',
-  20: 'Worsley Brow', 23: 'Auto Pitstop', 24: 'Crown SS', 25: 'Marsland SS', 29: 'Gemini SS', 30: 'Park View',
-  31: 'Filleybrook SS', 33: 'Swan Connect', 34: 'Portland', 35: 'Lower Lane', 36: 'Vale SS', 37: 'Kensington SS',
-  38: 'County Oak SS', 39: 'Kings Of Sedgley', 40: 'Gnosall SS', 41: 'Minsterley SS', 42: 'Nelson SS',
-  43: 'Yeovil SS', 44: 'Canklow SS', 45: 'Stanton Self Service',
+  0: 'HEAD OFFICE', 1: 'ANSON SS', 2: 'BELGRAVE SS', 3: 'GREENFORD PARK SS',
+  4: 'BADDESLEY SS', 5: 'SWANLEY SS', 6: 'ASTWICK SS', 7: 'VINEYARD SS',
+  8: 'WEXHAM SS', 9: 'LYE SS', 10: 'GIRTON SS', 11: 'PATCHAM SS',
+  12: 'SUBWAY', 13: 'PARK ROYAL SS', 14: 'Gravesend SS', 15: 'Amersham SS',
+  16: 'Oakham SS', 17: 'Spalding SS', 18: 'ERITH SS', 19: 'Erith Subway',
 };
 
 /**
@@ -124,7 +119,7 @@ router.get('/metrics', async (req, res) => {
     const siteCode = parseInt(siteId, 10);
     console.log('📊 [Backend] Parsed siteCode:', siteCode);
     
-    // Prefer Sage (transactions) so dashboard shows same data as Latest Petrol (Formula Sheet + PRL Logic Bar)
+    // Prefer Sage (transactions) so dashboard shows same data as Latest Petrol (Formula Sheet + wireframe.csv)
     try {
       const data = await getMetricsFromSage(siteCode, monthsArray, yearsArray, TRANSACTIONS_TABLE);
       return res.json({ success: true, data });
@@ -261,10 +256,10 @@ router.get('/metrics', async (req, res) => {
     // Basket size - aggregate transactions across all months/years
     const transactionQuery = `
       SELECT COUNT(*) as count
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE site_code = $1
-        AND EXTRACT(MONTH FROM transaction_date) IN (${monthPlaceholders})
-        AND EXTRACT(YEAR FROM transaction_date) IN (${yearPlaceholders})
+        AND EXTRACT(MONTH FROM sage_date) IN (${monthPlaceholders})
+        AND EXTRACT(YEAR FROM sage_date) IN (${yearPlaceholders})
         AND deleted_flag = 0
         AND category IN ('shop_sales', 'fuel_sales');
     `;
@@ -564,7 +559,7 @@ router.get('/charts/monthly-performance', async (req, res) => {
           data: shopSalesData
         },
         {
-          name: 'Valet Sales',
+          name: 'Coffee & Valet',
           data: valetSalesData
         }
       ]
@@ -665,12 +660,12 @@ router.get('/charts/sales-distribution', async (req, res) => {
         data: [
           { name: 'Fuel Sales', value: 0 },
           { name: 'Shop Sales', value: 0 },
-          { name: 'Valet Sales', value: 0 }
+          { name: 'Coffee & Valet', value: 0 }
         ]
       });
     }
     
-    // Prefer Sage (transactions) so dashboard shows same data as Latest Petrol (Formula Sheet + PRL Logic Bar)
+    // Prefer Sage (transactions) so dashboard shows same data as Latest Petrol (Formula Sheet + wireframe.csv)
     try {
       const data = await getSalesDistributionFromSage(siteCode, monthsArray, yearsArray);
       return res.json({ success: true, data });
@@ -742,7 +737,7 @@ router.get('/charts/sales-distribution', async (req, res) => {
         data: [
           { name: 'Fuel Sales', value: 0 },
           { name: 'Shop Sales', value: 0 },
-          { name: 'Valet Sales', value: 0 }
+          { name: 'Coffee & Valet', value: 0 }
         ]
       });
     }
@@ -757,7 +752,7 @@ router.get('/charts/sales-distribution', async (req, res) => {
     const responseData = [
       { name: 'Fuel Sales', value: fuelSales },
       { name: 'Shop Sales', value: shopSales },
-      { name: 'Valet Sales', value: valetSales }
+      { name: 'Coffee & Valet', value: valetSales }
     ];
     
     console.log('📊 [Backend] Calculated sales distribution:', responseData);
@@ -897,19 +892,19 @@ router.get('/charts/date-wise', async (req, res) => {
     
     const dailySalesQuery = `
       SELECT 
-        EXTRACT(DAY FROM transaction_date) as day,
+        EXTRACT(DAY FROM sage_date) as day,
         SUM(CASE WHEN category = 'fuel_sales' THEN amount ELSE 0 END) as fuel_sales,
         SUM(CASE WHEN category = 'shop_sales' THEN amount ELSE 0 END) as shop_sales,
         SUM(CASE WHEN category = 'valet_sales' THEN amount ELSE 0 END) as valet_sales,
         SUM(CASE WHEN category IN ('fuel_sales', 'shop_sales', 'valet_sales') THEN amount ELSE 0 END) as total_sales,
         COUNT(*) as transaction_count
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE site_code = $1
-        AND EXTRACT(MONTH FROM transaction_date) IN (${monthPlaceholders})
-        AND EXTRACT(YEAR FROM transaction_date) IN (${yearPlaceholders})
+        AND EXTRACT(MONTH FROM sage_date) IN (${monthPlaceholders})
+        AND EXTRACT(YEAR FROM sage_date) IN (${yearPlaceholders})
         AND deleted_flag = 0
         AND category IN ('fuel_sales', 'shop_sales', 'valet_sales')
-      GROUP BY EXTRACT(DAY FROM transaction_date)
+      GROUP BY EXTRACT(DAY FROM sage_date)
       ORDER BY day;
     `;
     
@@ -1184,7 +1179,7 @@ router.get('/petrol-data/fuel-volume', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
     
     const result = await query(fuelVolumeQuery, allParams);
@@ -1260,28 +1255,27 @@ router.get('/petrol-data/fuel-grade-breakdown', async (req, res) => {
     }
 
     const fuelGradeCodeNames = {
-      '4000': 'Petrol',
+      '4000': 'Unleaded',
       '4001': 'Diesel',
-      '4002': 'Super Petrol',
+      '4002': 'Super Unleaded',
       '4003': 'Super Diesel',
-      '4008': 'AdBlue'
+      '4004': 'Adblue'
     };
 
-    console.log('⛽ [Backend] Querying fuel grade breakdown from transactions');
+    console.log('⛽ [Backend] Querying fuel grade breakdown from HSRL_sage_audit_journal');
     console.log('⛽ [Backend] Date range:', { startDate, endDate });
 
-    // Query transactions table for volume by fuel grade nominal codes
     const fuelGradeQuery = `
       SELECT 
         nominal_code,
         COALESCE(SUM(volume), 0) as total_volume,
         COUNT(*) as transaction_count
-      FROM transactions
-      WHERE nominal_code IN ('4000', '4001', '4002', '4003', '4008')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('4000', '4001', '4002', '4003', '4004')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY nominal_code
       ORDER BY nominal_code;
     `;
@@ -1403,7 +1397,7 @@ router.get('/petrol-data/fuel-volume-breakdown', async (req, res) => {
       LEFT JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
       GROUP BY category
       ORDER BY category;
     `;
@@ -1414,7 +1408,7 @@ router.get('/petrol-data/fuel-volume-breakdown', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
     
     const [breakdownResult, totalResult] = await Promise.all([
@@ -1516,7 +1510,7 @@ router.get('/petrol-data/fuel-volume-by-site', async (req, res) => {
       FROM fuel_margin_data fmd
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
       GROUP BY fmd.site_code
       ORDER BY volume DESC;
     `;
@@ -1525,7 +1519,7 @@ router.get('/petrol-data/fuel-volume-by-site', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
     const [bySiteResult, totalResult] = await Promise.all([
       query(bySiteQuery, allParams),
@@ -1625,19 +1619,19 @@ router.get('/petrol-data/net-sales', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
     
     // Get other income from transactions (6100, 6101, 6102)
     const otherIncomeQuery = `
       SELECT 
         COALESCE(SUM(ABS(amount)), 0) as other_income
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
     
     const [fuelResult, otherIncomeResult] = await Promise.all([
@@ -1753,7 +1747,7 @@ router.get('/petrol-data/net-sales-breakdown', async (req, res) => {
       LEFT JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
       GROUP BY category
       ORDER BY category;
     `;
@@ -1764,12 +1758,12 @@ router.get('/petrol-data/net-sales-breakdown', async (req, res) => {
         nominal_code,
         COALESCE(SUM(ABS(amount)), 0) as income,
         COUNT(*) as transaction_count
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY nominal_code
       ORDER BY nominal_code;
     `;
@@ -1860,129 +1854,74 @@ router.get('/petrol-data/net-sales-breakdown', async (req, res) => {
 router.get('/petrol-data/profit', async (req, res) => {
   try {
     console.log('💰 [Backend] GET /api/dashboard/petrol-data/profit');
-    console.log('💰 [Backend] Query params:', req.query);
-
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      console.error('❌ [Backend] Missing startDate or endDate parameter');
-      return res.status(400).json({
-        success: false,
-        message: 'startDate and endDate are required (format: YYYY-MM-DD)'
-      });
+      return res.status(400).json({ success: false, message: 'startDate and endDate are required (format: YYYY-MM-DD)' });
     }
-
-    // Validate date format
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
-
-    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
-      console.error('❌ [Backend] Invalid date format');
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format. Use YYYY-MM-DD'
-      });
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime()) || startDateObj > endDateObj) {
+      return res.status(400).json({ success: false, message: 'Invalid date format or range. Use YYYY-MM-DD' });
     }
 
-    if (startDateObj > endDateObj) {
-      console.error('❌ [Backend] startDate is after endDate');
-      return res.status(400).json({
-        success: false,
-        message: 'startDate must be before or equal to endDate'
-      });
-    }
+    // Fuel Gross Profit: Revenue (4000-4004 + 4100,4101,4102) − Cost (5000-5005,5041,5050). Cost stored negative in DB, add.
+    const revenueNCs = ['4000','4001','4002','4003','4004','4100','4101','4102'];
+    const costNCs = ['5000','5001','5002','5003','5004','5005','5041','5050'];
+    const revPlaceholders = revenueNCs.map((_, i) => `$${i + 3}`).join(',');
+    const costPlaceholders = costNCs.map((_, i) => `$${i + 3 + revenueNCs.length}`).join(',');
+    const allParams = [startDate, endDate, ...revenueNCs, ...costNCs];
 
-    console.log('💰 [Backend] Querying profit from fuel_margin_data + other income');
-    console.log('💰 [Backend] Date range:', { startDate, endDate });
-
-    // Convert date range to year/month combinations
-    const { years, months } = getYearMonthRangeFromDates(startDate, endDate);
-    
-    if (years.length === 0 || months.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          totalProfit: 0,
-          fuelProfit: 0,
-          otherIncome: 0,
-          fuelSales: 0,
-          totalPurchases: 0
-        }
-      });
-    }
-    
-    // Build parameterized query for year/month combinations
-    const yearPlaceholders = years.map((_, i) => `$${i + 1}`).join(',');
-    const monthPlaceholders = months.map((_, i) => `$${years.length + i + 1}`).join(',');
-    const allParams = [...years, ...months];
-    
-    // Get fuel profit from fuel_margin_data (per documentation)
-    const fuelProfitQuery = `
-      SELECT 
-        COALESCE(SUM(fuel_profit), 0) as fuel_profit,
-        COALESCE(SUM(net_sales), 0) as fuel_sales,
-        COALESCE(SUM(purchases), 0) as total_purchases
-      FROM fuel_margin_data
-      WHERE year IN (${yearPlaceholders})
-        AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+    const revenueQuery = `
+      SELECT COALESCE(SUM((NULLIF(TRIM(amount), ''))::numeric), 0) as total
+      FROM HSRL_sage_audit_journal
+      WHERE TRIM(nominal_code::text) IN (${revPlaceholders})
+        AND (NULLIF(TRIM(sage_date), ''))::date >= $1::date
+        AND (NULLIF(TRIM(sage_date), ''))::date <= $2::date
+    `;
+    const costQuery = `
+      SELECT COALESCE(SUM((NULLIF(TRIM(amount), ''))::numeric), 0) as total
+      FROM HSRL_sage_audit_journal
+      WHERE TRIM(nominal_code::text) IN (${costPlaceholders})
+        AND (NULLIF(TRIM(sage_date), ''))::date >= $1::date
+        AND (NULLIF(TRIM(sage_date), ''))::date <= $2::date
     `;
 
-    // Get other income from transactions (6100, 6101, 6102)
-    const otherIncomeQuery = `
-      SELECT COALESCE(SUM(ABS(amount)), 0) as other_income
-      FROM transactions
-      WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
-        AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
-    `;
-
-    const [fuelResult, otherIncomeResult] = await Promise.all([
-      query(fuelProfitQuery, allParams),
-      query(otherIncomeQuery, [startDate, endDate])
+    const [revResult, costResult] = await Promise.all([
+      query(revenueQuery, allParams),
+      query(costQuery, allParams)
     ]);
 
-    const fuelProfit = parseFloat(fuelResult.rows[0]?.fuel_profit || 0);
-    const fuelSales = parseFloat(fuelResult.rows[0]?.fuel_sales || 0);
-    const totalPurchases = parseFloat(fuelResult.rows[0]?.total_purchases || 0);
-    const otherIncome = parseFloat(otherIncomeResult.rows[0]?.other_income || 0);
-    const totalProfit = fuelProfit + otherIncome;
+    let totalRevenue = parseFloat(revResult.rows[0]?.total ?? 0);
+    let totalCostRaw = parseFloat(costResult.rows[0]?.total ?? 0);
 
-    console.log('💰 [Backend] Profit calculation result:', {
-      fuelSales,
-      totalPurchases,
-      fuelProfit,
-      otherIncome,
-      totalProfit,
-      startDate,
-      endDate,
-      timestamp: new Date().toISOString()
-    });
+    // Fallback to 'net' column if amount yields zero
+    if (totalRevenue === 0 && totalCostRaw === 0) {
+      try {
+        const revNetQuery = revenueQuery.replace(/amount/g, 'net');
+        const costNetQuery = costQuery.replace(/amount/g, 'net');
+        const [revNet, costNet] = await Promise.all([
+          query(revNetQuery, allParams),
+          query(costNetQuery, allParams)
+        ]);
+        totalRevenue = parseFloat(revNet.rows[0]?.total ?? 0);
+        totalCostRaw = parseFloat(costNet.rows[0]?.total ?? 0);
+      } catch (_) {}
+    }
+
+    // Cost stored negative in DB; add so Net Profit = Revenue + Cost (e.g. 45 + (-37) = 8).
+    const totalCost = Math.abs(totalCostRaw);
+    const totalProfit = totalRevenue + totalCostRaw;
+
+    console.log('💰 [Backend] Net Profit:', { totalRevenue, totalCostRaw, totalCost, totalProfit, startDate, endDate });
 
     res.json({
       success: true,
-      data: {
-        totalProfit,
-        fuelProfit,
-        otherIncome,
-        fuelSales,
-        totalPurchases
-      }
+      data: { totalProfit, totalRevenue, totalCost }
     });
   } catch (error) {
-    console.error('❌ [Backend] Error fetching profit:', {
-      error: error.message,
-      stack: error.stack,
-      query: req.query,
-      timestamp: new Date().toISOString()
-    });
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching profit',
-      error: error.message
-    });
+    console.error('❌ [Backend] Error fetching profit:', error.message);
+    res.status(500).json({ success: false, message: 'Error fetching profit', error: error.message });
   }
 });
 
@@ -1994,133 +1933,74 @@ router.get('/petrol-data/profit', async (req, res) => {
 router.get('/petrol-data/profit-breakdown', async (req, res) => {
   try {
     console.log('💰 [Backend] GET /api/dashboard/petrol-data/profit-breakdown');
-    console.log('💰 [Backend] Query params:', req.query);
-
     const { startDate, endDate } = req.query;
 
     if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        message: 'startDate and endDate are required (format: YYYY-MM-DD)'
-      });
+      return res.status(400).json({ success: false, message: 'startDate and endDate are required (format: YYYY-MM-DD)' });
     }
-
-    // Validate dates
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
     if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime()) || startDateObj > endDateObj) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format or range'
-      });
+      return res.status(400).json({ success: false, message: 'Invalid date format or range' });
     }
 
-    // Convert date range to year/month combinations
-    const { years, months } = getYearMonthRangeFromDates(startDate, endDate);
-    
-    if (years.length === 0 || months.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          fuelSalesBreakdown: [],
-          purchasesBreakdown: [],
-          otherIncomeBreakdown: [],
-          totalFuelSales: 0,
-          totalPurchases: 0,
-          fuelProfit: 0,
-          totalOtherIncome: 0,
-          totalProfit: 0,
-          startDate,
-          endDate
-        }
-      });
-    }
-    
-    // Build parameterized query for year/month combinations
-    const yearPlaceholders = years.map((_, i) => `$${i + 1}`).join(',');
-    const monthPlaceholders = months.map((_, i) => `$${years.length + i + 1}`).join(',');
-    const allParams = [...years, ...months];
+    // Fuel Gross Profit breakdown: Revenue 4000-4004 + 4100,4101,4102; Cost 5000-5005,5041,5050.
+    const revenueNCs = ['4000','4001','4002','4003','4004','4100','4101','4102'];
+    const costNCs = ['5000','5001','5002','5003','5004','5005','5041','5050'];
+    const allNCs = [...revenueNCs, ...costNCs];
+    const ncPlaceholders = allNCs.map((_, i) => `$${i + 3}`).join(',');
+    const allParams = [startDate, endDate, ...allNCs];
 
-    // Get fuel profit breakdown by bunkered/non-bunkered from fuel_margin_data (per documentation)
-    const fuelProfitBreakdownQuery = `
-      SELECT 
-        CASE WHEN s.is_bunkered = TRUE THEN 'Bunkered' ELSE 'Non-Bunkered' END as category,
-        COALESCE(SUM(fmd.fuel_profit), 0) as fuel_profit,
-        COALESCE(SUM(fmd.net_sales), 0) as net_sales,
-        COALESCE(SUM(fmd.purchases), 0) as purchases
-      FROM fuel_margin_data fmd
-      LEFT JOIN sites s ON fmd.site_code = s.site_code
-      WHERE fmd.year IN (${yearPlaceholders})
-        AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
-      GROUP BY category
-      ORDER BY category;
-    `;
-
-    // Get other income breakdown (6100, 6101, 6102)
-    const otherIncomeBreakdownQuery = `
-      SELECT 
-        nominal_code,
-        COALESCE(SUM(ABS(amount)), 0) as income,
-        COUNT(*) as transaction_count
-      FROM transactions
-      WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
-        AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
-      GROUP BY nominal_code
-      ORDER BY nominal_code;
-    `;
-
-    const otherIncomeNames = {
-      '6100': 'Fuel Commissions',
-      '6101': 'Daily Facility Fees',
-      '6102': 'Valeting Commissions'
+    const ncNames = {
+      '4000':'Unleaded-Sales','4001':'Diesel-Sales','4002':'Super Unleaded-Sales',
+      '4003':'Super Diesel-Sales','4004':'Adblue-Sales',
+      '4100':'Bunkering Charges (BP Commission)','4101':'Bunkered Sales','4102':'Bunkered Commission',
+      '5000':'Unleaded-Purchases','5001':'Diesel-Purchases','5002':'Super Unleaded-Purchases',
+      '5003':'Super Diesel-Purchases','5004':'Adblue-Purchases','5005':'Fuel Promotional','5041':'Fuel Commission','5050':'Stock Movement',
     };
 
-    const [fuelResult, otherIncomeResult] = await Promise.all([
-      query(fuelProfitBreakdownQuery, allParams),
-      query(otherIncomeBreakdownQuery, [startDate, endDate])
-    ]);
+    const breakdownQuery = `
+      SELECT TRIM(nominal_code::text) AS nc,
+             COALESCE(SUM((NULLIF(TRIM(amount), ''))::numeric), 0) as total
+      FROM HSRL_sage_audit_journal
+      WHERE TRIM(nominal_code::text) IN (${ncPlaceholders})
+        AND (NULLIF(TRIM(sage_date), ''))::date >= $1::date
+        AND (NULLIF(TRIM(sage_date), ''))::date <= $2::date
+      GROUP BY TRIM(nominal_code::text)
+    `;
 
-    // Format fuel profit breakdown
-    const fuelSalesBreakdown = fuelResult.rows.map(row => ({
-      category: row.category,
-      fuelProfit: parseFloat(row.fuel_profit || 0),
-      netSales: parseFloat(row.net_sales || 0),
-      purchases: parseFloat(row.purchases || 0)
-    }));
+    let bdRows = await query(breakdownQuery, allParams);
 
-    const otherIncomeBreakdown = otherIncomeResult.rows.map(row => ({
-      code: row.nominal_code,
-      name: otherIncomeNames[row.nominal_code] || `Code ${row.nominal_code}`,
-      amount: parseFloat(row.income || 0),
-      transactionCount: parseInt(row.transaction_count || 0)
-    }));
+    // Fallback to 'net' column if amount yields all zeros
+    if (!bdRows?.rows?.length || bdRows.rows.every(r => parseFloat(r.total || 0) === 0)) {
+      try {
+        const netQuery = breakdownQuery.replace(/amount/g, 'net');
+        bdRows = await query(netQuery, allParams);
+      } catch (_) {}
+    }
 
-    const bunkeredProfit = fuelSalesBreakdown.find(item => item.category === 'Bunkered')?.fuelProfit || 0;
-    const nonBunkeredProfit = fuelSalesBreakdown.find(item => item.category === 'Non-Bunkered')?.fuelProfit || 0;
-    const totalFuelProfit = bunkeredProfit + nonBunkeredProfit;
-    const totalOtherIncome = otherIncomeBreakdown.reduce((sum, item) => sum + item.amount, 0);
-    const totalProfit = totalFuelProfit + totalOtherIncome;
-    
-    // Calculate totals for display
-    const totalFuelSales = fuelSalesBreakdown.reduce((sum, item) => sum + item.netSales, 0);
-    const totalPurchases = fuelSalesBreakdown.reduce((sum, item) => sum + item.purchases, 0);
+    const rawByCode = {};
+    (bdRows?.rows || []).forEach(r => { const c = String(r.nc ?? '').trim(); if (c) rawByCode[c] = parseFloat(r.total || 0); });
+
+    const otherIncomeBreakdown = allNCs.map(code => ({ code, name: ncNames[code] || code, amount: rawByCode[code] ?? 0 }));
+
+    const totalRevenue = revenueNCs.reduce((s, c) => s + (rawByCode[c] ?? 0), 0);
+    const totalCostRaw = costNCs.reduce((s, c) => s + (rawByCode[c] ?? 0), 0);
+    const totalCost = Math.abs(totalCostRaw);
+    const totalProfit = totalRevenue + totalCostRaw;
+    const totalPositives = otherIncomeBreakdown.filter(x => (x.amount || 0) > 0).reduce((s, x) => s + x.amount, 0);
+    const totalNegatives = otherIncomeBreakdown.filter(x => (x.amount || 0) < 0).reduce((s, x) => s + x.amount, 0);
 
     res.json({
       success: true,
       data: {
-        fuelSalesBreakdown,
+        fuelSalesBreakdown: [],
         otherIncomeBreakdown,
-        bunkeredProfit,
-        nonBunkeredProfit,
-        totalFuelProfit,
-        totalFuelSales,
-        totalPurchases,
-        totalOtherIncome,
         totalProfit,
+        totalPositives,
+        totalNegatives,
+        totalRevenue,
+        totalCost,
         startDate,
         endDate
       }
@@ -2187,7 +2067,7 @@ router.get('/petrol-data/avg-ppl', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(avgPPLQuery, allParams);
@@ -2261,12 +2141,12 @@ router.get('/petrol-data/actual-ppl', async (req, res) => {
     // Get total overheads (7000-7999) from transactions
     const overheadsQuery = `
       SELECT COALESCE(SUM(ABS(amount)), 0) as total_overheads
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code::integer >= 7000 AND nominal_code::integer < 8000
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     // Get total volume from fuel_margin_data (per documentation)
@@ -2275,7 +2155,7 @@ router.get('/petrol-data/actual-ppl', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const [overheadsResult, volumeResult] = await Promise.all([
@@ -2348,12 +2228,12 @@ router.get('/petrol-data/actual-ppl-breakdown', async (req, res) => {
         END as category,
         COALESCE(SUM(ABS(amount)), 0) as amount,
         COUNT(*) as transaction_count
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code::integer >= 7000 AND nominal_code::integer < 8000
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY 
         CASE 
           WHEN nominal_code::integer >= 7000 AND nominal_code::integer < 7100 THEN 'Labour (7000-7099)'
@@ -2428,22 +2308,24 @@ router.get('/petrol-data/labour-cost', async (req, res) => {
     const labourCostQuery = `
       SELECT
         COALESCE(SUM(ABS(CASE WHEN nominal_code = '7000' THEN amount ELSE 0 END)), 0) as gross_wages,
-        COALESCE(SUM(ABS(CASE WHEN nominal_code = '7006' THEN amount ELSE 0 END)), 0) as employers_ni,
-        COALESCE(SUM(ABS(CASE WHEN nominal_code = '7007' THEN amount ELSE 0 END)), 0) as staff_pensions
-      FROM transactions
-      WHERE nominal_code IN ('7000', '7006', '7007')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        COALESCE(SUM(ABS(CASE WHEN nominal_code IN ('7001','7003') THEN amount ELSE 0 END)), 0) as employers_ni,
+        COALESCE(SUM(ABS(CASE WHEN nominal_code = '7002' THEN amount ELSE 0 END)), 0) as directors_salaries,
+        COALESCE(SUM(ABS(CASE WHEN nominal_code = '7005' THEN amount ELSE 0 END)), 0) as directors_pensions
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('7000', '7001', '7002', '7003', '7005')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(labourCostQuery, [startDate, endDate]);
 
     const grossWages = parseFloat(result.rows[0]?.gross_wages || 0);
     const employersNI = parseFloat(result.rows[0]?.employers_ni || 0);
-    const staffPensions = parseFloat(result.rows[0]?.staff_pensions || 0);
-    const totalLabourCost = grossWages + employersNI + staffPensions;
+    const directorsSalaries = parseFloat(result.rows[0]?.directors_salaries || 0);
+    const directorsPensions = parseFloat(result.rows[0]?.directors_pensions || 0);
+    const totalLabourCost = grossWages + employersNI + directorsSalaries + directorsPensions;
 
     res.json({
       success: true,
@@ -2494,12 +2376,12 @@ router.get('/petrol-data/labour-cost-breakdown', async (req, res) => {
         nominal_code,
         COALESCE(SUM(ABS(amount)), 0) as amount,
         COUNT(*) as transaction_count
-      FROM transactions
-      WHERE nominal_code IN ('7000', '7006', '7007')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('7000', '7001', '7002', '7003', '7005')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY nominal_code
       ORDER BY nominal_code;
     `;
@@ -2508,8 +2390,10 @@ router.get('/petrol-data/labour-cost-breakdown', async (req, res) => {
 
     const labourCodeNames = {
       '7000': 'Gross Wages',
-      '7006': 'Employers N.I.',
-      '7007': 'Staff Pensions'
+      '7001': 'Employers N.I. - Staff',
+      '7002': 'Directors Salaries',
+      '7003': 'Employers N.I. - Directors',
+      '7005': 'Directors Pensions'
     };
 
     const breakdown = result.rows.map(row => ({
@@ -2586,7 +2470,7 @@ router.get('/petrol-data/active-sites', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(activeSitesQuery, allParams);
@@ -2661,7 +2545,7 @@ router.get('/petrol-data/profit-margin', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(profitMarginQuery, allParams);
@@ -2739,18 +2623,18 @@ router.get('/petrol-data/avg-sale-per-site', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     // Get other income from transactions
     const otherIncomeQuery = `
       SELECT COALESCE(SUM(ABS(amount)), 0) as other_income
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     // Get active sites from fuel_margin_data
@@ -2759,7 +2643,7 @@ router.get('/petrol-data/avg-sale-per-site', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const [fuelNetSalesResult, otherIncomeResult, activeSitesResult] = await Promise.all([
@@ -2838,7 +2722,7 @@ router.get('/petrol-data/total-purchases', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(purchasesQuery, allParams);
@@ -2906,11 +2790,11 @@ router.get('/petrol-data/total-purchases-breakdown', async (req, res) => {
     const allParams = [...years, ...months];
 
     const purchaseCodeNames = {
-      '5000': 'Petrol- Purchases',
-      '5001': 'Diesel- Purchases',
-      '5003': 'Super Petrol- Purchases',
-      '5004': 'Super Diesel- Purchases',
-      '5014': 'AdBlue- Purchases'
+      '5000': 'Unleaded - Purchases',
+      '5001': 'Diesel - Purchases',
+      '5002': 'Super Unleaded - Purchases',
+      '5003': 'Super Diesel - Purchases',
+      '5004': 'Adblue - Purchases'
     };
 
     // Get total purchases from fuel_margin_data (per documentation - this is the authoritative total)
@@ -2919,7 +2803,7 @@ router.get('/petrol-data/total-purchases-breakdown', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     // Get breakdown by nominal code from transactions (for detail, but total should match fuel_margin_data)
@@ -2928,12 +2812,12 @@ router.get('/petrol-data/total-purchases-breakdown', async (req, res) => {
         nominal_code,
         COALESCE(SUM(ABS(amount)), 0) as purchases,
         COUNT(*) as transaction_count
-      FROM transactions
-      WHERE nominal_code IN ('5000', '5001', '5003', '5004', '5014')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('5000', '5001', '5002', '5003', '5004')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY nominal_code
       ORDER BY nominal_code;
     `;
@@ -3001,9 +2885,9 @@ router.get('/petrol-data/bank-balance', async (req, res) => {
         COALESCE(SUM(CASE WHEN nominal_code = '1223' THEN amount ELSE 0 END), 0) as edmonton,
         COALESCE(SUM(CASE WHEN nominal_code = '1224' THEN amount ELSE 0 END), 0) as lloyds,
         COALESCE(SUM(CASE WHEN nominal_code = '1200' THEN amount ELSE 0 END), 0) as prl_hsbc
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('1200', '1223', '1224')
-        AND transaction_date <= $1::date
+        AND sage_date <= $1::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL);
     `;
 
@@ -3062,9 +2946,9 @@ router.get('/petrol-data/bank-balance-breakdown', async (req, res) => {
         nominal_code,
         COALESCE(SUM(amount), 0) as balance,
         COUNT(*) as transaction_count
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('1200', '1223', '1224')
-        AND transaction_date <= $1::date
+        AND sage_date <= $1::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
       GROUP BY nominal_code
       ORDER BY nominal_code;
@@ -3161,7 +3045,7 @@ router.get('/petrol-data/bunkered-breakdown', async (req, res) => {
       JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
         AND s.is_bunkered = TRUE;
     `;
 
@@ -3243,7 +3127,7 @@ router.get('/petrol-data/non-bunkered-breakdown', async (req, res) => {
       JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
         AND (s.is_bunkered = FALSE OR s.is_bunkered IS NULL);
     `;
 
@@ -3298,12 +3182,12 @@ router.get('/petrol-data/other-income-summary', async (req, res) => {
     const otherIncomeQuery = `
       SELECT 
         COALESCE(SUM(ABS(amount)), 0) as total
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code IN ('6100', '6101', '6102')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1);
+        AND site_code BETWEEN 0 AND 19;
     `;
 
     const result = await query(otherIncomeQuery, [startDate, endDate]);
@@ -3382,7 +3266,7 @@ router.get('/petrol-data/monthly-trends', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY month
       ORDER BY month;
     `;
@@ -3441,32 +3325,32 @@ router.get('/petrol-data/daily-data', async (req, res) => {
     // Get daily fuel sales from transactions (nominal codes 4000-4008)
     const dailySalesQuery = `
       SELECT 
-        transaction_date as date,
+        sage_date as date,
         SUM(ABS(amount)) as fuel_sales,
         COUNT(*) as transaction_count
-      FROM transactions
-      WHERE nominal_code IN ('4000', '4001', '4002', '4003', '4008')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('4000', '4001', '4002', '4003', '4004')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
-      GROUP BY transaction_date
-      ORDER BY transaction_date;
+        AND site_code BETWEEN 0 AND 19
+      GROUP BY sage_date
+      ORDER BY sage_date;
     `;
     
     // Get daily purchases to calculate profit
     const dailyPurchasesQuery = `
       SELECT 
-        transaction_date as date,
+        sage_date as date,
         SUM(ABS(amount)) as fuel_purchases
-      FROM transactions
-      WHERE nominal_code IN ('5000', '5001', '5003', '5004', '5014')
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+      FROM HSRL_sage_audit_journal
+      WHERE nominal_code IN ('5000', '5001', '5002', '5003', '5004')
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
-      GROUP BY transaction_date
-      ORDER BY transaction_date;
+        AND site_code BETWEEN 0 AND 19
+      GROUP BY sage_date
+      ORDER BY sage_date;
     `;
     
     // Get monthly volume from fuel_margin_data to calculate daily average
@@ -3486,7 +3370,7 @@ router.get('/petrol-data/daily-data', async (req, res) => {
         FROM fuel_margin_data
         WHERE year IN (${yearPlaceholders})
           AND month IN (${monthPlaceholders})
-          AND site_code NOT IN (0, 1)
+          AND site_code BETWEEN 0 AND 19
         GROUP BY year, month;
       `;
       
@@ -3612,7 +3496,7 @@ router.get('/petrol-data/ppl-comparison', async (req, res) => {
       FROM fuel_margin_data
       WHERE year IN (${yearPlaceholders})
         AND month IN (${monthPlaceholders})
-        AND site_code NOT IN (0, 1)
+        AND site_code BETWEEN 0 AND 19
       GROUP BY year, month
       ORDER BY year, month;
     `;
@@ -3620,16 +3504,16 @@ router.get('/petrol-data/ppl-comparison', async (req, res) => {
     // Get overheads from transactions (7000-7999) for actual_ppl
     const overheadsQuery = `
       SELECT 
-        EXTRACT(YEAR FROM transaction_date) as year,
-        EXTRACT(MONTH FROM transaction_date) as month,
+        EXTRACT(YEAR FROM sage_date) as year,
+        EXTRACT(MONTH FROM sage_date) as month,
         SUM(ABS(amount)) as total_overheads
-      FROM transactions
+      FROM HSRL_sage_audit_journal
       WHERE nominal_code::integer >= 7000 AND nominal_code::integer < 8000
-        AND transaction_date >= $1::date
-        AND transaction_date <= $2::date
+        AND sage_date >= $1::date
+        AND sage_date <= $2::date
         AND (deleted_flag = 0 OR deleted_flag IS NULL)
-        AND site_code NOT IN (0, 1)
-      GROUP BY EXTRACT(YEAR FROM transaction_date), EXTRACT(MONTH FROM transaction_date)
+        AND site_code BETWEEN 0 AND 19
+      GROUP BY EXTRACT(YEAR FROM sage_date), EXTRACT(MONTH FROM sage_date)
       ORDER BY year, month;
     `;
     
@@ -3747,7 +3631,7 @@ router.get('/petrol-data/profit-by-site', async (req, res) => {
       JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code NOT IN (0, 1)
+        AND fmd.site_code BETWEEN 0 AND 19
       GROUP BY s.site_code, s.site_name
       ORDER BY profit DESC
       LIMIT 10;
@@ -3815,14 +3699,31 @@ router.get('/petrol-data/site-rankings', async (req, res) => {
       });
     }
     
+    // Parse optional siteIds filter (comma-separated site codes)
+    const rawSiteIds = req.query.siteIds;
+    const filteredSiteIds = rawSiteIds
+      ? rawSiteIds.split(',').map(Number).filter(n => Number.isFinite(n) && n > 0)
+      : [];
+
     // Build parameterized query for year/month combinations
-    const yearPlaceholders = years.map((_, i) => `$${i + 1}`).join(',');
-    const monthPlaceholders = months.map((_, i) => `$${years.length + i + 1}`).join(',');
+    let paramOffset = 0;
+    const yearPlaceholders = years.map((_, i) => `$${++paramOffset}`).join(',');
+    const monthPlaceholders = months.map((_, i) => `$${++paramOffset}`).join(',');
     const allParams = [...years, ...months];
-    
-    // Get site rankings from fuel_margin_data; use DEPT_TO_SITE_NAME for display names (sites 6–45 only)
+
+    // Build site filter clause
+    let siteFilterClause;
+    if (filteredSiteIds.length > 0) {
+      const sitePlaceholders = filteredSiteIds.map((_, i) => `$${++paramOffset}`).join(',');
+      siteFilterClause = `AND fmd.site_code IN (${sitePlaceholders})`;
+      allParams.push(...filteredSiteIds);
+    } else {
+      siteFilterClause = 'AND fmd.site_code >= 6 AND fmd.site_code <= 45';
+    }
+
+    // Get site rankings from fuel_margin_data
     const siteRankingsQuery = `
-      SELECT 
+      SELECT
         fmd.site_code,
         s.site_name,
         SUM(fmd.net_sales) as net_sales,
@@ -3832,23 +3733,22 @@ router.get('/petrol-data/site-rankings', async (req, res) => {
       LEFT JOIN sites s ON fmd.site_code = s.site_code
       WHERE fmd.year IN (${yearPlaceholders})
         AND fmd.month IN (${monthPlaceholders})
-        AND fmd.site_code >= 6 AND fmd.site_code <= 45
+        ${siteFilterClause}
       GROUP BY fmd.site_code, s.site_name
-      ORDER BY net_sales DESC;
+      ORDER BY fuel_profit DESC;
     `;
-    
+
     const result = await query(siteRankingsQuery, allParams);
-    
+
     const siteData = result.rows.map(row => {
       const siteCode = row.site_code != null ? Number(row.site_code) : null;
       const displayName = (siteCode != null && DEPT_TO_SITE_NAME[siteCode]) ? DEPT_TO_SITE_NAME[siteCode] : (row.site_name || 'Dept ' + (siteCode ?? row.site_code));
-      // Treat negative stored values as positive for display/calculation
       const netSales = Math.abs(parseFloat(row.net_sales || 0));
       const saleVolume = parseFloat(row.sale_volume || 0);
       const fuelProfit = Math.abs(parseFloat(row.fuel_profit || 0));
       const ppl = saleVolume > 0 ? (fuelProfit / saleVolume) * 100 : 0;
       const margin = netSales > 0 ? (fuelProfit / netSales) * 100 : 0;
-      
+
       return {
         site_code: siteCode ?? row.site_code,
         name: displayName,
@@ -3859,11 +3759,15 @@ router.get('/petrol-data/site-rankings', async (req, res) => {
         margin: parseFloat(margin.toFixed(2))
       };
     });
-    
-    // Rank by profit magnitude (always positive)
-    siteData.sort((a, b) => (b.fuel_profit ?? 0) - (a.fuel_profit ?? 0));
-    const top = siteData.slice(0, 5);
-    const bottom = siteData.slice(-5).reverse();
+
+    // Dynamic split: top half (high profit) vs bottom half (low profit)
+    // 2 sites → 1 top, 1 bottom | 4 sites → 2 top, 2 bottom | all sites → top 5, bottom 5
+    const n = siteData.length;
+    const topCount = filteredSiteIds.length > 0 ? Math.ceil(n / 2) : Math.min(5, Math.ceil(n / 2));
+    const bottomCount = filteredSiteIds.length > 0 ? Math.floor(n / 2) : Math.min(5, Math.floor(n / 2));
+
+    const top = siteData.slice(0, topCount);
+    const bottom = siteData.slice(n - bottomCount).reverse();
     
     res.json({
       success: true,

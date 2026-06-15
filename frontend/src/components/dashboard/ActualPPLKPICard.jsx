@@ -2,8 +2,8 @@ import { Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * ActualPPLKPICard Component
- * Displays Actual Profit Per Liter (overheads per liter) KPI
+ * ActualPPLKPICard — PPL after O/H (keeps prop name actualPPL for API data)
+ * Displays PPL after O/H (net per litre after overheads)
  */
 export const ActualPPLKPICard = ({ actualPPL, loading, error, onClick }) => {
   const formatPPL = (ppl) => {
@@ -25,8 +25,8 @@ export const ActualPPLKPICard = ({ actualPPL, loading, error, onClick }) => {
             <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight">
-              Actual PPL
+            <p className="text-xs sm:text-sm text-muted-foreground font-semibold uppercase tracking-wide leading-tight">
+              PPL after O/H
             </p>
           </div>
         </div>
@@ -40,20 +40,20 @@ export const ActualPPLKPICard = ({ actualPPL, loading, error, onClick }) => {
           </div>
         ) : error ? (
           <div className="space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold text-destructive tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-destructive tracking-tight leading-tight">
               Error
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               {error}
             </p>
           </div>
         ) : (
           <>
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-foreground tracking-tight leading-tight">
               {formatPPL(actualPPL || 0)}
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
-              Overheads per liter
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
+              Net per litre after O/H
             </p>
           </>
         )}

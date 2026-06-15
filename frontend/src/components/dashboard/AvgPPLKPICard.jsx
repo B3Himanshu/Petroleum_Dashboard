@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * AvgPPLKPICard Component
- * Displays Average Profit Per Liter KPI
+ * Displays Gross PPL (profit per litre before O/H)
  */
 export const AvgPPLKPICard = ({ avgPPL, loading, error }) => {
   const formatPPL = (ppl) => {
@@ -23,8 +23,8 @@ export const AvgPPLKPICard = ({ avgPPL, loading, error }) => {
             <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight">
-              Avg PPL
+            <p className="text-xs sm:text-sm text-muted-foreground font-semibold uppercase tracking-wide leading-tight">
+              Gross PPL
             </p>
           </div>
         </div>
@@ -38,20 +38,20 @@ export const AvgPPLKPICard = ({ avgPPL, loading, error }) => {
           </div>
         ) : error ? (
           <div className="space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold text-destructive tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-destructive tracking-tight leading-tight">
               Error
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               {error}
             </p>
           </div>
         ) : (
           <>
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-foreground tracking-tight leading-tight">
               {formatPPL(avgPPL || 0)}
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
-              Profit per liter
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
+              Per litre before O/H
             </p>
           </>
         )}

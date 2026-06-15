@@ -1,0 +1,278 @@
+================================================================================
+PORTFOLIO — PETROLEUM ANALYTICS DASHBOARD SUITE
+4 Multi-Tenant SaaS Dashboards · Sage Integration · Real-Time KPIs
+================================================================================
+
+PROFESSIONAL SUMMARY
+────────────────────────────────────────────────────────────────────────────────
+Full-stack engineer specialising in financial analytics dashboards for the UK
+petroleum retail sector. Built and shipped four production dashboards (HSRL,
+PRL, PBFS, …) that ingest live Sage 50/Sage 200 audit-journal data and turn
+raw nominal-code transactions into actionable KPIs for petrol-station owners
+and operators. Each project covers everything from PostgreSQL schema design
+and back-end aggregation to React data visualisation, mobile responsiveness,
+SSL deployment, and Cloudflare-fronted production hosting on a shared
+multi-tenant subdomain (dashboard.credentia.biz/{client}).
+
+
+THE 4 DASHBOARD PROJECTS
+────────────────────────────────────────────────────────────────────────────────
+
+1) HSRL — Highway Stops Retail Limited
+   • 17-site petrol-station chain across the UK
+   • Live Sage audit-journal ingestion (HSRL_sage_audit_journal)
+   • Bunkering revenue logic with negative-sign reconciliation
+   • Custom 4101 details-column parser for accrual + reversal volume
+   • Live at: https://dashboard.credentia.biz/hsrl
+
+2) PRL — (sister dashboard, same architecture, smaller chart palette)
+   • 5-grade fuel mix; lighter site count; identical Sage logic re-skinned
+   • Demonstrates env-driven multi-tenancy (single codebase → many clients)
+
+3) PBFS — Petroleum Business Forecourt Services
+   • Different nominal-code namespace (40010–40014, 50010–50014, 53003–53007)
+   • Shows ability to map any client's chart-of-accounts into the same KPI engine
+   • Stock-movement logic baked into per-fuel-grade profit
+
+4) [Fourth Dashboard] — additional petroleum group
+   • Same base architecture, different KPI scope and branding
+   • Confirms the platform scales to N clients with zero core rewrites
+
+
+DOMAIN KNOWLEDGE — SAGE ACCOUNTING
+────────────────────────────────────────────────────────────────────────────────
+Deep familiarity with Sage 50 / Sage 200 chart-of-accounts conventions for the
+petroleum sector:
+
+  • Revenue codes (4000–4004): Petrol Unleaded, Diesel, Super Unleaded,
+    Super Diesel, Adblue — stored as negative amounts in the audit journal
+    (credit entries).
+  • Bunkering codes (4100/4101/4102): BP commission charges, bunkered sales,
+    bunkered commission — mixed sign convention (4100 + 4102 are costs paid
+    TO BP, 4101 is bunkered fuel revenue).
+  • Cost codes (5000–5005, 5041, 5046–5050): purchases, fuel commissions,
+    stock movement per grade — stored as positive amounts.
+  • Labour (7000–7005), Overheads (7100–7800), Depreciation (8200–8207),
+    Loan Interest (7705/7750/7752/7753), Corporation Tax (9000).
+  • Bank balance ranges (1200–1222) for closing-cash KPI.
+
+This domain knowledge let me build correct profit calculations that match
+the client's actual P&L — including the subtle "Charges deducted from Diesel"
+rule that aggregates BP commissions into the diesel category for clean UI
+display while preserving raw data.
+
+
+KEY KPIs DELIVERED
+────────────────────────────────────────────────────────────────────────────────
+Every dashboard surfaces these in real-time, click-through cards with full
+breakdown modals:
+
+  ◦ Total Site Revenue (split by Fuel / Shop / Coffee & Valet, % of total)
+  ◦ Total Fuel Volume (litres) — combined HSRL_volumne_2025 + Sage details parser
+  ◦ Gross Profit Breakdown — by fuel grade, with Charges deduction
+  ◦ Gross PPL & PPL after O/H (pence per litre, before & after overheads)
+  ◦ Total Net Profit (EBITDA − Depreciation − Loan Interest − Corp Tax)
+  ◦ EBITDA card with full breakdown
+  ◦ Labour Cost as % of fuel sales (with traffic-light colour coding)
+  ◦ Net Sales, Avg Sale per Site, Active Sites, Bank Balance
+  ◦ Site ROI Trend Over Time (monthly EBITDA + ROI %)
+
+
+CHART LIBRARY — VISUALISATIONS BUILT
+────────────────────────────────────────────────────────────────────────────────
+  • Monthly Fuel Performance — composed bar + line chart (revenue, volume,
+    margin %)
+  • Volume vs Gross PPL — dual-axis combo chart
+  • Fuel Grade Mix doughnut — volume + profit side-by-side, with
+    Largest-Remainder percentage reconciliation
+  • Shop / Coffee & Valet monthly combo charts
+  • Monthly Overhead Cost Trends — stacked area chart with 26 categories,
+    external legend, scrollable tooltip
+  • PPL Comparison — multi-month line chart
+  • Site ROI Trend — dual-axis line, mobile-positioned tooltip
+  • Metrics Comparison (Plotly) — compare KPIs across all sites
+  • Site Comparison page — bar + pie + photo gallery
+
+
+DATA FLOW (CLIENT VALUE STORY)
+────────────────────────────────────────────────────────────────────────────────
+For a non-technical petrol-station owner, here is what the dashboard answers
+in under 10 seconds:
+
+  Q: "How much money came in this month?"
+     → Total Site Revenue card. View breakdown shows split by fuel
+        (per-grade), shop (per-product), coffee & valet (per-product).
+
+  Q: "Am I making money on each grade of fuel?"
+     → Gross Profit Breakdown modal — Unleaded vs Diesel vs Super grades
+        vs Adblue. Charges (BP commissions) are netted into Diesel so the
+        grade-level profit reflects what actually hits the bank.
+
+  Q: "Is my pricing competitive enough? What's my margin per litre?"
+     → Gross PPL card → currently 14.87p before overheads, 10.34p after.
+        Trend chart shows whether it's improving.
+
+  Q: "Where am I bleeding cash on overheads?"
+     → Monthly Overhead Cost Trends — drill into 26 cost categories,
+        identify outliers (e.g. credit charges spiking, repairs running hot).
+
+  Q: "Which of my sites are performing best?"
+     → Site ROI Trend, Metrics Comparison (Plotly bar), Site Comparison
+        page (PPL, Labour %, Net Sales, photo gallery).
+
+  Q: "What is my real net profit after every deduction?"
+     → Total Net Profit card → EBITDA − Depreciation − Loan Interest −
+        Corporation Tax, with full breakdown modal showing every nominal
+        code that contributes.
+
+  Q: "Are bunkering deals helping or hurting?"
+     → Bunkered vs Non-Bunkered comparison charts (sales, volume, profit).
+
+
+TECHNICAL STACK
+────────────────────────────────────────────────────────────────────────────────
+Frontend
+  • React 18 + Vite + TypeScript-flavoured JSX
+  • Tailwind CSS + shadcn/ui (Card, Dialog, Popover, Switch, Toast)
+  • Recharts (Bar / Line / Area / Composed / Pie)
+  • Chart.js + react-chartjs-2 (Doughnut for grade mix)
+  • Plotly.js (multi-site comparison bar chart)
+  • React Router v6, React Query, Lucide icons
+  • Mobile-first responsive design (sm/md/lg/xl/2xl breakpoints)
+  • Glass-morphism design language with HSL semantic tokens, light/dark
+    theme via runtime /api/ui-config flag
+
+Backend
+  • Node.js + Express (ESM)
+  • PostgreSQL (raw SQL, parameterised; no ORM overhead)
+  • JWT auth with bcrypt password hashing
+  • Email verification + password reset flow (nodemailer + Gmail App Password)
+  • Custom Sage details-column parser for fuel volumes (2 formats: slash &
+    dash-terminated, with Rev. reversal sign detection)
+  • Largest Remainder method for percentage reconciliation across breakdowns
+
+Database
+  • PostgreSQL on dedicated server (164.52.192.205)
+  • Sage audit journal table per client (HSRL_sage_audit_journal, etc.)
+  • Volume-2025 table for pre-2026 fuel litres (manual import)
+  • Multi-tenant via dept_number (site code) filtering
+
+DevOps & Deployment
+  • Docker (single-container nginx + Node + supervisord)
+  • Cloudflare DNS + SSL termination
+  • Origin nginx with Let's Encrypt cert + per-tenant location blocks
+    (/hsrl/, /prl/, /pbfs/) on shared dashboard.credentia.biz subdomain
+  • Cloudflare Quick Tunnels for live preview during development
+  • PowerShell deploy script (deploy.ps1) — SCP files + SSH-driven
+    docker compose build & up
+
+
+ENGINEERING HIGHLIGHTS — WHAT MAKES THIS PORTFOLIO STAND OUT
+────────────────────────────────────────────────────────────────────────────────
+1) Multi-tenant from a single codebase
+   Same React + Express stack runs four clients with completely different
+   nominal-code namespaces just by changing one env var (BASE_PATH=/hsrl,
+   /prl, /pbfs) and remapping fuel-grade codes in a single config object.
+   No code forks. No copy-paste rot.
+
+2) Exact percentage reconciliation
+   Implemented the Largest Remainder (Hamilton) method so child %s sum to
+   parent %s exactly at any precision. Critical for trust — if a finance
+   user adds the rows manually, they get 100.000%.
+
+3) Mobile-first responsive charts
+   Compressed 12 months of bars into 320 px wide screens without horizontal
+   scroll. Y-axis labels rotate inside chart, x-axis ticks angle to -45°,
+   tooltips reposition above the chart instead of overlapping data points.
+
+4) Negative-sign awareness
+   Sage's mixed sign convention (revenue negative, costs positive, except
+   bunkering charges) was hand-mapped into UI logic. Charges show in red
+   with a minus prefix, percentages reconcile correctly, totals match the
+   client's actual P&L.
+
+5) Performance & UX details
+   Lazy-loaded site photos (loading="lazy" + decoding="async"), SVG
+   placeholder fallbacks, glass-morphism cards with backdrop-blur, exact-
+   precision percentage display (3+ decimals when value is < 0.05%).
+
+6) Production-grade auth & email
+   Email verification with token-hash storage, password-reset with single-
+   use tokens, "show-error-as-200" pattern so login failures don't pollute
+   the browser console with API URLs.
+
+7) Documentation discipline
+   Every substantive change appended to CHANGE_LOG.md with timestamp,
+   files, details, and rollback instructions. Cursor rule auto-enforces.
+   Documentation/ folder with ARCHITECTURE / NOMINAL_CODES /
+   VOLUME_LOGIC / API / FRONTEND / CHANGES_INDEX.
+
+
+HOW TO PRESENT IN CV / PORTFOLIO SITE
+────────────────────────────────────────────────────────────────────────────────
+ONE-LINER (resume top, under role)
+  "Built 4 production analytics dashboards for UK petroleum retailers,
+  ingesting live Sage audit-journal data into real-time KPI cards, profit
+  breakdowns, and 12+ chart components — multi-tenant on a single codebase
+  via env-driven config."
+
+BULLET POINTS (resume project section)
+  • Designed and shipped 4 multi-tenant petroleum analytics dashboards
+    (HSRL, PRL, PBFS, …) on a shared SaaS domain
+    (dashboard.credentia.biz/{client}); single React + Node codebase
+    serves every client via env-driven base path.
+  • Built a Sage 50/200 audit-journal ingestion layer in Node + Postgres
+    that maps client-specific nominal codes (4000s revenue, 5000s costs,
+    7000s overheads, 8000s depreciation) into a unified KPI engine.
+  • Authored a custom details-column parser for fuel-volume accruals
+    (handles both slash-separated and dash-terminated values, with
+    sign-flipping for "Rev." reversal entries).
+  • Implemented Largest-Remainder percentage reconciliation so breakdown
+    rows sum exactly to 100% at any precision — critical for finance
+    audit trust.
+  • Mobile-first responsive UI: compact axes, rotated labels, repositioned
+    tooltips so 12 months of data fit on a 320-px screen.
+  • End-to-end production: PostgreSQL schema → Express REST API → React UI
+    → Docker container → Cloudflare-fronted SSL via Let's Encrypt → email
+    verification flow with Gmail App Password.
+  • Stack: React 18 / Vite / Tailwind / shadcn/ui / Recharts / Chart.js
+    / Plotly / Node.js / Express / PostgreSQL / JWT / nodemailer / Docker
+    / nginx / Cloudflare.
+
+PORTFOLIO PAGE — INTERACTIVE WALKTHROUGH IDEAS
+  ◦ Hero: animated UK map (replicate the InitialLandingState — zoom-in
+    from world to UK with city pins for each project's sites).
+  ◦ Project tiles: HSRL / PRL / PBFS / [4th] — each with a short
+    "client problem → solution → measurable outcome" card.
+  ◦ Live demo links (read-only): one each for HSRL and PRL with
+    pre-seeded demo creds. Toggle to show K/M vs exact figures so a
+    recruiter can see the precision work.
+  ◦ Code snippets — pull the parse4101VolumeFromDetails(), Largest
+    Remainder helper, and category-pairing logic into a syntax-highlighted
+    block to demonstrate clean engineering.
+  ◦ "How a client uses this in 30 seconds" section: 4 short before/after
+    screenshots (raw Sage rows → KPI card answer).
+
+
+SAMPLE CLIENT-VALUE PARAGRAPH (FOR LINKEDIN / WEBSITE)
+────────────────────────────────────────────────────────────────────────────────
+"Petroleum retailers in the UK lose visibility into their real-time profit
+the moment they grow past 5 sites. Sage holds the truth, but it's locked
+behind nominal codes, sign conventions, and audit-journal noise. I build
+dashboards that turn that journal into a 10-second answer to the only
+questions an owner cares about: am I making money on every grade, every
+site, every month — and where is it leaking? Four such dashboards now run
+in production for separate clients, all on the same codebase, deployed at
+dashboard.credentia.biz."
+
+
+CONTACT / LINKS (TO ADD)
+────────────────────────────────────────────────────────────────────────────────
+  • Live: https://dashboard.credentia.biz/hsrl  (HSRL — read-only demo)
+  • GitHub: <add your repo link / private demo on request>
+  • LinkedIn: <your URL>
+  • Email: gauravthakur1k@gmail.com
+
+================================================================================
+END OF portfolio.txt
+================================================================================

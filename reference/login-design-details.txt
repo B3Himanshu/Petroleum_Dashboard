@@ -1,0 +1,361 @@
+================================================================
+HSRL DASHBOARD — LOGIN & ADMIN UI DESIGN DETAILS
+================================================================
+
+
+----------------------------------------------------------------
+PAGE 1: USER LOGIN  →  Route: /login
+----------------------------------------------------------------
+
+URL:     /login
+File:    frontend/src/pages/Login.jsx
+Shell:   frontend/src/components/auth/AuthSignInChrome.jsx
+
+──── FULL PAGE LAYOUT ────────────────────────────────────────
+
+Background:
+  - Full screen (min-h-screen)
+  - bg-background (dark theme default)
+  - Radial gradient glow at top center:
+      blue/10 opacity ellipse 88% wide, 56% tall at 50% 8%
+      Creates a subtle blue glow behind the logo
+
+Content Area:
+  - Centered column, max-width: 448px (max-w-md)
+  - Vertical padding: 40px top/bottom (py-10) on mobile
+                      48px (sm:py-12) on desktop
+  - Gap between brand header and card: 32px (gap-8) mobile
+                                        40px (sm:gap-10) desktop
+
+──── BRAND HEADER (top of page) ──────────────────────────────
+
+Logo Icon:
+  - Square 80×80px, rounded corners (rounded-2xl)
+  - Background: gradient  blue-500 → blue-600 → blue-700 (top-left to bottom-right)
+  - Shadow: blue-600 at 25% opacity
+  - Inside: white bar chart SVG icon (3 rising bars)
+
+Brand Name:
+  - "HSRL"
+  - Font: extrabold, clamp size (1.85rem → 3.25rem based on viewport)
+  - Color: text-foreground (white in dark mode)
+  - Margin top: 20px from logo
+
+Tagline:
+  - "Petroleum Business Fuel Solutions"
+  - Font: 0.7rem, uppercase, letter-spacing 0.22em, medium weight
+  - Color: text-muted-foreground (grey)
+  - Margin top: 10px
+
+Divider Line:
+  - 36px wide horizontal line
+  - Gradient: transparent → primary → transparent
+  - Margin top: 16px
+
+Dashboard Title:
+  - "Business Performance Dashboard"
+  - Font: 1.05rem, semibold
+  - Color: text-foreground
+  - Margin top: 16px
+
+Metric Pills (4 pills in a row):
+  - Labels: FUEL  |  SHOP  |  VALET  |  ROI
+  - Style: rounded-full, border (primary color at 55% opacity)
+  - Text: 0.65rem, uppercase, letter-spacing wide
+  - Color: text-foreground
+  - Padding: 12px horizontal, 4px vertical
+  - Layout: flex wrap, centered, gap-2
+  - Margin top: 16px
+
+──── LOGIN CARD ──────────────────────────────────────────────
+
+Card Style:
+  - Full width, rounded-2xl corners
+  - Border: border-border
+  - Background: bg-card
+  - Shadow: shadow-lg shadow-black/6%
+
+Card Header (inside card, top):
+  - Padding: 24px sides (px-6), 24px top, 8px bottom
+             32px sides on sm screens (sm:px-8)
+  - Title:   "Sign in to your account"
+             Font: bold, 1.25rem (xl) mobile / 1.5rem (2xl) desktop
+             Color: text-foreground
+  - Subtitle: "Use the credentials provided by your administrator."
+              Font: 0.875rem (sm)
+              Color: text-muted-foreground
+
+Card Content (form area):
+  - Padding: 24px sides, 32px bottom, 8px top
+             32px sides on sm screens
+  - Gap between elements: 16px
+
+ERROR ALERT (shown only on failed login):
+  - Red destructive alert box
+  - Title: "Could not sign in"
+  - Body:  error message from API
+  - Appears above the form fields
+
+FORM FIELDS:
+
+  [1] Email address
+      Label:       "Email address"
+      Input type:  email
+      Placeholder: "you@example.com"
+      Autocomplete: email
+      Required
+
+  [2] Password
+      Label row:   "Password"  (left)  +  "Forgot password?" link (right)
+      "Forgot password?" → links to /forgot-password
+                           color: text-primary, underline on hover
+      Input type:  password
+      Autocomplete: current-password
+      Required
+
+  [3] Sign in Button (primary)
+      Full width, height 44px (h-11)
+      Background: blue-600
+      Hover:      blue-700
+      Text:       "Sign in"  /  "Signing in…" while loading
+      Font: base size, semibold, white
+
+  [4] OR Divider
+      Horizontal line with "OR" text centered
+      Text: 0.65rem, uppercase, letter-spacing 0.2em
+      Color: text-muted-foreground
+
+  [5] Admin login Button (secondary/outline)
+      Full width, height 44px
+      Border: primary at 40% opacity
+      Background: bg-background
+      Text color: text-primary
+      Text: "Admin login"
+      → Links to /admin/login page
+
+
+──── LOGIN STATES ────────────────────────────────────────────
+
+Default:         Empty form, no error
+Loading:         Button shows "Signing in…", disabled
+Error (401):     Red alert box with message
+Error (403):     Red alert box (unverified email message)
+Success:         Toast "Signed in" → redirect to /dashboard
+
+
+================================================================
+PAGE 2: ADMIN LOGIN  →  Route: /admin/login
+================================================================
+
+URL:     /admin/login
+File:    frontend/src/pages/AdminLogin.jsx
+
+Uses same AuthSignInShell wrapper and brand header as user login.
+Same full-page layout, same logo, same pills.
+
+──── ADMIN LOGIN CARD ────────────────────────────────────────
+
+Card Title:    "Admin sign in"
+Card Subtitle: "Manage dashboard users (create / delete)."
+
+FORM FIELDS:
+
+  [1] Admin username
+      Label:        "Admin username"
+      Input type:   text   (not email — accepts email string)
+      Autocomplete: username
+      Required
+
+  [2] Password
+      Label:       "Password"
+      Input type:  password
+      Autocomplete: current-password
+      Required
+
+  [3] Sign in Button (primary)
+      Same style as user login (blue-600, full width, h-11)
+      Text: "Sign in"  /  "Signing in…" while loading
+
+  [4] OR Divider (same style)
+
+  [5] Dashboard user sign in Button (outline)
+      Text: "Dashboard user sign in"
+      → Links to /login page
+
+On success:
+  - JWT token stored in localStorage key: "hsrl_admin_token"
+  - Admin profile stored in localStorage key: "hsrl_admin_profile"
+  - Toast: "Signed in as admin"
+  - Redirect to /admin (Admin Dashboard)
+
+
+================================================================
+PAGE 3: ADMIN DASHBOARD  →  Route: /admin
+================================================================
+
+URL:     /admin
+File:    frontend/src/pages/AdminDashboard.jsx
+Auth:    Requires admin JWT (redirects to /admin/login if missing)
+
+──── PAGE LAYOUT ─────────────────────────────────────────────
+
+Background:   bg-transparent (inherits app background)
+Padding:      16px (p-4) mobile  /  32px (p-8) desktop
+Max width:    896px (max-w-4xl), centered
+
+──── TOP BAR ─────────────────────────────────────────────────
+
+Left:
+  Title:    "Admin — users"  (text-2xl, bold)
+  Subtitle: "Create and delete dashboard users only."  (text-sm, muted)
+
+Right (button group):
+  [View dashboard]   → /dashboard           (default blue button)
+  [Settings]         → /admin/settings      (outline button)
+  [User login]       → /login               (outline button)
+  [Admin logout]     → clears token, goes to /admin/login  (secondary button)
+
+On mobile: buttons wrap to a second row
+
+
+──── CARD 1: CREATE USER ─────────────────────────────────────
+
+Card Title:       "Create user"
+Card Description: "Initial password is returned once in a toast — save it.
+                   User resets password only via email link."
+
+Form layout:      2-column grid on sm+ screens, 1-column on mobile
+Gap between fields: 16px
+
+Fields:
+
+  [1] First name
+      Input type: text
+      Placeholder: "First name"
+      Max 100 chars
+      Optional
+
+  [2] Last name
+      Input type: text
+      Placeholder: "Last name"
+      Max 100 chars
+      Optional
+
+  [3] Email                          (required)
+      Input type: email
+
+  [4] Initial password               (required)
+      Label: "Initial password (min 8 chars)"
+      Input type: password
+      Min length: 8
+
+  [5] Verification method            (spans both columns)
+      Two radio buttons:
+
+      ○ Verify from user
+        "Send email with verification link (user must click to activate)."
+        Value: "user_link"  ← DEFAULT
+
+      ○ Direct verify
+        "Mark user verified immediately and email them that account is active."
+        Value: "direct"
+
+  [6] Create user button
+      Spans both columns
+      Text: "Create user"  /  "Creating…" while loading
+      Blue primary button
+
+On success:
+  - Toast: "User created"
+  - Toast (info, 20s): "Copy initial password now: xxxxxxxx"
+  - If email failed: Toast warning about SMTP config
+  - If dev mode + no SMTP: Toast with verification URL link
+  - Form resets to empty
+
+
+──── CARD 2: USERS TABLE ─────────────────────────────────────
+
+Card Title:       "Users"
+Card Description: "X user(s)"  /  "Loading…"
+
+Table columns:
+  Name     |  Email  |  Verified  |  Actions
+
+Each row:
+  Name:     first_name + last_name (or "—" if empty)
+  Email:    user's email address
+  Verified: "Yes" if email_verified_at is set  /  "No" if null
+
+Actions (per row):
+
+  If NOT verified:
+    [Verify]         → admin marks verified directly (with confirm dialog)
+    [Resend verify]  → sends new verification email to user
+
+  Always shown:
+    [Update password]  → toggles an inline password edit row below
+    [Delete]           → red destructive button, confirm dialog first
+
+Inline password edit row (appears below user row when editing):
+  - Password input: "New password (min 8 chars)"
+  - [Save password] / [Cancel] buttons
+
+
+================================================================
+PAGE 4: FORGOT PASSWORD  →  Route: /forgot-password
+================================================================
+
+Linked from "Forgot password?" on user login page.
+User enters email → receives reset link → sets new password.
+(Standard forgot-password flow, not detailed here.)
+
+
+================================================================
+ROUTES SUMMARY
+================================================================
+
+/login              → User login page
+/admin/login        → Admin login page
+/admin              → Admin dashboard (create/manage users)
+/admin/settings     → Admin settings page
+/forgot-password    → Forgot password (for users)
+/verify-email       → Email verification link landing page
+
+
+================================================================
+COLORS USED (Tailwind)
+================================================================
+
+Primary blue:       #2563eb  (blue-600)
+Hover blue:         #1d4ed8  (blue-700)
+Gradient start:     #3b82f6  (blue-500)
+Gradient end:       #1d4ed8  (blue-700)
+Text foreground:    white in dark mode
+Muted text:         grey (hsl var)
+Card background:    dark card (hsl var)
+Border:             subtle border (hsl var)
+Error:              red destructive (hsl var)
+Success toast:      green
+Warning toast:      yellow/amber
+Info toast:         blue
+
+
+================================================================
+TOKENS STORED IN BROWSER
+================================================================
+
+localStorage key: "hsrl_admin_token"
+  → Admin JWT token (7 day expiry)
+  → Set on admin login success
+  → Cleared on admin logout
+
+localStorage key: "hsrl_admin_profile"
+  → JSON: { id, email, username, firstName, lastName }
+  → Set after admin login (fetched from /api/admin/profile)
+
+sessionStorage key: "hsrl_auth_token" (or similar)
+  → User JWT for regular dashboard access
+
+================================================================
+END OF FILE
+================================================================

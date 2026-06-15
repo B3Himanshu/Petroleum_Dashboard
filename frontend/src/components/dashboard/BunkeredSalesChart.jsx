@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useIsSmUp } from "@/hooks/use-mobile";
+import { dashTickPrimary, dashTickSecondary, dashLegendItemClass, dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 import {
   BarChart,
   Bar,
@@ -12,6 +14,9 @@ import {
 import { dashboardAPI } from "@/services/api";
 
 export const BunkeredSalesChart = ({ siteId, month, months, year, years }) => {
+  const smUp = useIsSmUp();
+  const tickX = dashTickPrimary(smUp);
+  const tickY = dashTickSecondary(smUp);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -76,8 +81,8 @@ export const BunkeredSalesChart = ({ siteId, month, months, year, years }) => {
     return (
       <div className="chart-card h-[320px] sm:h-[360px] lg:h-[380px] animate-slide-up" style={{ animationDelay: "350ms" }}>
         <div className="mb-3 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-semibold text-foreground">Sales Data (Bar-graph)</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Comparing Bunkered vs Non-Bunkered sales</p>
+          <h3 className="dash-chart-heading">Sales Data (Bar-graph)</h3>
+          <p className="dash-chart-subtitle">Comparing Bunkered vs Non-Bunkered sales</p>
         </div>
         <div className="flex items-center justify-center h-[calc(100%-80px)] sm:h-[85%]">
           <div className="text-muted-foreground text-sm sm:text-base">No data available</div>
@@ -89,27 +94,27 @@ export const BunkeredSalesChart = ({ siteId, month, months, year, years }) => {
   return (
     <div className="chart-card h-[320px] sm:h-[360px] lg:h-[380px] animate-slide-up" style={{ animationDelay: "350ms" }}>
       <div className="mb-3 sm:mb-4">
-        <h3 className="text-base sm:text-lg font-semibold text-foreground">Sales Data (Bar-graph)</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Comparing Bunkered vs Non-Bunkered sales</p>
+        <h3 className="dash-chart-heading">Sales Data (Bar-graph)</h3>
+        <p className="dash-chart-subtitle">Comparing Bunkered vs Non-Bunkered sales</p>
       </div>
 
       <div className="h-[calc(100%-80px)] sm:h-[85%]">
         <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} barGap={4} barCategoryGap="25%" margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+          <CartesianGrid {...dashCartesianGridProps} />
           <XAxis 
             dataKey="month" 
             axisLine={false} 
             tickLine={false}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickX }}
             className="sm:text-xs lg:text-sm"
           />
           <YAxis 
             axisLine={false} 
             tickLine={false}
-            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: tickY }}
             className="sm:text-xs lg:text-sm"
-            width={50}
+            width={smUp ? 54 : 50}
             tickFormatter={(value) => {
               if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
               if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
@@ -122,9 +127,9 @@ export const BunkeredSalesChart = ({ siteId, month, months, year, years }) => {
               border: "1px solid hsl(var(--border))",
               borderRadius: "8px",
               boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-              fontSize: "12px",
-              padding: "8px",
-              maxWidth: "200px",
+              fontSize: "14px",
+              padding: "10px 12px",
+              maxWidth: "220px",
             }}
             formatter={(value, name) => {
               const formattedValue = `£${value.toLocaleString()}`;
@@ -138,11 +143,11 @@ export const BunkeredSalesChart = ({ siteId, month, months, year, years }) => {
             wrapperStyle={{ zIndex: 1000 }}
           />
           <Legend 
-            wrapperStyle={{ paddingTop: "8px", fontSize: "11px" }}
-            className="text-xs sm:text-sm"
+            wrapperStyle={{ paddingTop: "8px", fontSize: "14px" }}
+            className="text-sm sm:text-base"
             iconSize={12}
             formatter={(value) => (
-              <span className="text-xs sm:text-sm text-muted-foreground">
+              <span className={`${dashLegendItemClass()} text-muted-foreground`}>
                 {value === "bunkered" ? "Bunkered" : "Non-Bunkered"}
               </span>
             )}

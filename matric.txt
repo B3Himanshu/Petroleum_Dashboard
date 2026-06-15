@@ -1,0 +1,367 @@
+================================================================================
+HSRL DASHBOARD — KPI CARDS & BREAKDOWN MODALS — DATA REPRESENTATION
+================================================================================
+What each card shows, how data is formatted, and what the breakdown modals
+display (rows, columns, percentages).
+
+================================================================================
+1. TOTAL SITE REVENUE
+================================================================================
+Card:
+  Title:        "Total Site Revenue"
+  Main Value:   £5.69M (or £5,690,000.00 when exact mode on)
+  Format:       Currency — £K / £M toggle
+  Subtitle:
+    - Fuel: £5.51M
+    - Shop: £83K
+    - Coffee & Valet: £98K
+  Action:       "View breakdown ->"
+
+Breakdown Modal: "Total Site Revenue Breakdown"
+  Description:  "Each row: category, value, % of total site revenue."
+  Columns:      NAME | VALUE | %
+
+  FUEL SALES (section header)
+    Row: "Fuel Sales"                        £5.51M    96.8%
+
+    FUEL BY PRODUCT (VALUE £) (sub-header, indented with green left border)
+      Row: "4000 Petrol Unleaded"            £2,452,047.69    43.1%
+      Row: "4001 Diesel Unleaded"            £2,389,690.19    42.0%
+      Row: "4002 Petrol Super Unl..."        £360,496.89       6.3%
+      Row: "4003 Diesel Super Unl..."        £209,536.01       3.7%
+      Row: "4004 Adblue"                     £31,910.87        0.6%
+      Row: "4100 Bunkering Charg..."         £121,824.06       2.1%
+      Row: "4101 Bunkered Sales"             £183,384.97       3.2%
+      Row: "4102 Bunkered Commiss..."        £4,389.88         0.1%
+
+  SHOP SALES (section header)
+    Row: "Shop Sales"                        £83K       1.5%
+
+    SHOP BY PRODUCT (VALUE £) (sub-header, indented with green left border)
+      Row: "4032 E-Pay Sales"                £2,740.00         0.0%
+      Row: "4034 Paypoint/Keychar..."        £32,209.05        0.6%
+      ... (all shop nominal codes with amounts)
+
+  COFFEE & VALET (section header)
+    Row: "Coffee & Valet"                    £98K       1.7%
+
+    COFFEE & VALET BY PRODUCT (sub-header, indented)
+      Row: per nominal code with amounts
+
+  TOTAL REVENUE (bold row, highlighted bg)
+    Row: "Total Revenue"                     £5.69M    100.0%
+
+  % Calculation: each row value / total revenue * 100
+
+================================================================================
+2. TOTAL FUEL VOLUME
+================================================================================
+Card:
+  Title:        "Total Fuel Volume"
+  Main Value:   4.70 ML (or exact litres when toggled)
+  Format:       Volume — KL / ML (1 ML = 1,000,000 L; 1 KL = 1,000 L)
+  Subtitle (per fuel grade):
+    - Petrol Unleaded:        2.17 ML
+    - Diesel Unleaded:        1.98 ML
+    - Petrol Super Unleaded:  279.03 KL
+    - Diesel Super Unleaded:  153.46 KL
+    - Adblue:                 21.29 KL
+    - Bunkering Volume:       176.15 KL   (was "Bunkered Sales", renamed)
+  Action:       "View breakdown ->"
+
+Breakdown Modal: "Total Fuel Volume — Breakdown"
+  Two sections:
+
+  SECTION 1: Volume by categories
+    Columns: NAME | VOLUME | %
+    Rows (one per nominal code):
+      Row: "Petrol Unleaded (4000)"          2.17 ML     46.1%
+      Row: "Diesel Unleaded (4001)"          1.98 ML     42.1%
+      Row: "Petrol Super Unleaded (4002)"    279.03 KL    5.9%
+      Row: "Diesel Super Unleaded (4003)"    153.46 KL    3.3%
+      Row: "Adblue (4004)"                   21.29 KL     0.5%
+      Row: "Bunkering Volume (4101)"         176.15 KL    3.7%
+    % Calculation: each code volume / total volume * 100
+
+  SECTION 2: Volume by site
+    Columns: SITE | VOLUME | %
+    Rows (one per site, sorted by volume descending):
+      Row: "Astley"                          XXX KL       XX.X%
+      Row: "Swan"                            XXX KL       XX.X%
+      ... (each active site)
+    % Calculation: each site volume / total volume * 100
+
+  Note: 4101 Bunkering is volume-only. It is NOT included in any
+  £ sales value or revenue figure — only in volume totals.
+
+================================================================================
+3. GROSS PPL AND PPL AFTER O/H
+================================================================================
+Card:
+  Title:        "Gross PPL and PPL after O/H"
+  Format:       Pence per litre (p) — 2 decimal places
+  Main Values (stacked):
+    Line 1 label: "Gross PPL"
+    Line 1 value: 14.87p                    (green text)
+    Line 2 label: "PPL after O/H"
+    Line 2 value: 10.34p                    (emerald text, larger)
+  Action:       "View breakdown ->"
+
+  Fallback (no volume data): shows as % margin instead of pence.
+
+Breakdown Modal: "PPL after O/H — Breakdown"
+  SECTION 1: Overhead cost by category
+    Columns: NAME | VALUE
+    Rows:
+      Row: "Wages"                           £XX,XXX
+      Row: per overhead nominal code         £X,XXX
+      ... (all overhead codes excl. 8200-8207 depreciation, 7750 loan)
+      Row: "Total Overheads"                 £XXX,XXX     (bold total)
+
+  SECTION 2: Calculation box (highlighted)
+    "Fuel profit after overheads (£)"
+    "{fuelProfit} − {totalOverheads} = {fuelProfitAfterOH}"
+
+  SECTION 3: Summary
+    Row: "Gross PPL"                         XX.XXp
+    Row: "OH Deduction"                      -XX.XXp
+    Row: "PPL after O/H"                     XX.XXp       (bold total)
+
+  Formulas:
+    Gross PPL = Fuel Profit / Fuel Volume * 100
+    OH Deduction = |Overheads| / Fuel Volume * 100
+    PPL after O/H = (Fuel Profit - |Overheads|) / Fuel Volume * 100
+
+================================================================================
+4. GROSS PROFIT
+================================================================================
+Card:
+  Title:        "Gross Profit"
+  Main Value:   £795K (or exact)
+  Format:       Currency — £K / £M toggle
+  Action:       "View breakdown ->"
+
+Breakdown Modal: "Gross Profit Breakdown"
+  Columns:      NAME | VALUE | %
+
+  Row: "Fuel"                                £711K      89.5%
+  Row: "Shop"                                £2K         0.3%
+  Row: "Coffee & Valet profit"               £81K       10.2%
+  ─── (divider line, border-t-2 border-primary)
+  Row: "Total gross profit"                  £795K     100.0%    (bold, highlighted bg)
+
+  % Calculation: each category / (|fuel| + |shop| + |valet|) * 100
+  Fuel value = abs(fuelProfit)
+  Shop value = abs(shopProfit)
+  Valet value = abs(valetProfit)
+
+  NOTE: This modal shows 3 combined rows only. Previously showed per-fuel-grade
+  breakdown (Unleaded, Diesel, etc.) — removed. Now fuel is one combined figure.
+
+================================================================================
+5. TOTAL NET PROFIT
+================================================================================
+Card:
+  Title:        "Total Net Profit"
+  Main Value:   £XXXK
+  Format:       Currency — £K / £M toggle
+  Formula:      EBITDA − Depreciation − Loan Interest − Corporation Tax
+
+Breakdown Modal: "Total Net Profit — Breakdown"
+  Row: "EBITDA"                              £854K
+
+  DEPRECIATION (8200–8207) (sub-section with left border)
+    Row: "8200 {name}"                       £X,XXX
+    Row: "8201 {name}"                       £X,XXX
+    ... (each depreciation code)
+    Row: "Total Depreciation"                £XX,XXX     (bold total)
+
+  LOAN INTEREST (7750, 7705, 7752, 7753) (sub-section with left border)
+    Note: excludes 7751 for Total Net Profit only; EBITA unchanged
+    Row: "7750 {name}"                       £X,XXX
+    Row: "7705 {name}"                       £X,XXX
+    ... (each loan interest code)
+    Row: "Total Loan Interest"               £XX,XXX     (bold total)
+
+  Row: "Corporation Tax (9000)"              £XX,XXX
+  ─── (divider)
+  Row: "Total Net Profit"                    £XXXK       (bold total)
+
+================================================================================
+6. LABOUR COST AS PER SHOP/FUEL SALES %
+================================================================================
+Card:
+  Title:        "Labour Cost as per shop/fuel sales %"
+  Main Value:   0.8%
+  Format:       Percentage — 1 decimal place
+  Colour:
+    - Green:  ≤ 4%
+    - Yellow: ≤ 5%
+    - Red:    > 5%
+  Subtitle:
+    - Labour: £44K
+    - Fuel: £5.51M
+  Action:       "View breakdown ->"
+
+Breakdown Modal: "Labour Cost Breakdown"
+  Columns: NAME | VALUE | TXN COUNT
+
+  LABOUR CODES:
+    Row: "7000 Wages"                        £XX,XXX     (XX txns)
+    Row: "7001 NI Contributions"             £XX,XXX     (XX txns)
+    Row: "7005 Other Labour"                 £XX,XXX     (XX txns)
+    Row: "Total Labour Cost (7000+7001+7005)" £44K       (bold total)
+
+  ─── (divider)
+  Row: "Fuel Sales"                          £5.51M
+
+  Row: "Labour Cost %"                       0.8%        (bold total)
+
+  Formula: (7000 + 7001 + 7005) / Fuel Sales * 100
+
+================================================================================
+7. EBITDA
+================================================================================
+Card:
+  Title:        "EBITDA"
+  Main Value:   £854K
+  Format:       Currency — £K / £M toggle
+  Colour:       Green if positive, red if negative
+  Subtitle:
+    - Gross Profit: £795K
+    - Misc Income: £275K
+    - Overheads: £217K
+  Action:       "View breakdown ->"
+
+Breakdown Modal: "EBITDA — Breakdown"
+  Formula text: "EBITDA = Gross Profit + Misc Income − Overheads
+                 (excl. Depreciation & Loan Interest)"
+
+  GROSS PROFIT (section):
+    Row: "Fuel Profit"                       £711K
+    Row: "Shop Profit"                       £2K
+    Row: "Coffee & Valet Profit"             £81K
+    Row: "Total Gross Profit"                £795K       (bold total)
+
+  MISCELLANEOUS INCOME (section):
+    Row: "Miscellaneous Income"              £275K
+
+  OVERHEADS (section):
+    Row: "Overheads (excl. Depreciation      £217K
+          & Loan Interest)"
+
+  EXCLUDED FROM OVERHEADS (muted section):
+    Row: "Depreciation"                      £XX,XXX
+    Row: "Loan Interest"                     £XX,XXX
+
+  ─── (divider, border-t-2 border-primary)
+  Row: "EBITDA"                              £854K       (bold total)
+
+================================================================================
+8. NET SALES (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Net Sales"
+  Main Value:   £XXXK
+  Format:       Currency — £K / £M toggle
+  Subtitle:     "Fuel Sales + Other Income"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+9. GROSS PPL (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Gross PPL"
+  Main Value:   14.87p
+  Format:       Pence — 2 decimal places + "p" suffix
+  Subtitle:     "Per litre before O/H"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+10. PPL AFTER O/H (standalone KPI card)
+================================================================================
+Card:
+  Title:        "PPL after O/H"
+  Main Value:   10.34p
+  Format:       Pence — 2 decimal places + "p" suffix
+  Subtitle:     "Net per litre after O/H"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+11. ACTIVE SITES (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Active Sites"
+  Main Value:   9 (integer)
+  Format:       Integer count
+  Subtitle:     "Sites with transactions"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+12. AVG SALE PER SITE (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Avg Sale/Site"
+  Main Value:   £XXXK
+  Format:       Currency — £K / £M toggle
+  Subtitle:     "Net Sales / Active Sites"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+13. BANK BALANCE (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Bank Balance"
+  Main Value:   £XXXK
+  Format:       Currency — £K / £M toggle
+  Subtitle:     "Closing balance"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+14. LABOUR COST (standalone KPI card)
+================================================================================
+Card:
+  Title:        "Labour Cost"
+  Main Value:   £44K
+  Format:       Currency — £K / £M toggle
+  Subtitle:     "As % of fuel sales"
+  Breakdown:    NONE (no modal)
+
+================================================================================
+VALUE FORMATTING RULES
+================================================================================
+Currency (£):
+  Show M mode:  £1.25M, £450K, £5.69M
+  Exact mode:   £1,234,567.89 (commas, 2 decimals)
+
+Volume (Litres):
+  Show M mode:  4.70 ML, 279.03 KL, 21.29 KL
+  Exact mode:   4,700,000.00 L (commas, 2 decimals)
+  1 ML = 1,000,000 L
+  1 KL = 1,000 L
+
+PPL (Pence Per Litre):
+  Always:       14.87p, 10.34p (2 decimals + "p")
+
+Percentage (%):
+  In cards:     0.8%, 96.8% (1 decimal)
+  In modals:    89.5%, 0.3%, 10.2% (1 decimal)
+
+================================================================================
+BREAKDOWN MODAL COLUMN LAYOUT
+================================================================================
+All modals use a 3-column grid:
+  grid-cols-[minmax(0,1fr)_auto_3.5rem]
+
+  Column 1: NAME    — left-aligned, truncates with ellipsis if long
+  Column 2: VALUE   — right-aligned, tabular-nums, font-medium
+  Column 3: %       — right-aligned, tabular-nums, text-muted-foreground
+
+  Normal row:  py-2 text-sm border-b border-border/60
+  Total row:   font-semibold, border-primary/25, bg-primary/5, rounded-md
+  Section:     text-[10px] font-semibold uppercase tracking-wide, pt-2 pb-1
+  Sub-section: pl-2, border-l-2 border-emerald-500/35 (indented with green bar)
+
+================================================================================
+END OF matric.txt
+================================================================================

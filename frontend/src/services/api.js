@@ -3,53 +3,161 @@
  * Handles all backend API communication
  */
 
-// Backend default port is 2000 (server.js). Set VITE_API_URL if you use PORT=3001 in backend/.env
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:2000';
+import { ALL_HSRL_SITES } from '@/constants/sites';
+
+// Backend default port is 2000 (server.js).
+// In dev: leave VITE_API_URL unset → use same-origin "/api" + Vite proxy (works with Cloudflare tunnel on phone).
+// Set VITE_API_URL only if the API is on another host (e.g. PORT=3001 or production build).
+const _viteApi = (import.meta.env.VITE_API_URL ?? '').trim().replace(/\/$/, '');
+const API_BASE_URL = _viteApi || '';
+
+/** localStorage keys for JWT (user vs admin sessions) */
+export const USER_TOKEN_KEY = 'hsrl_jwt_user';
+export const ADMIN_TOKEN_KEY = 'hsrl_jwt_admin';
 
 /**
- * Generic fetch wrapper with error handling
+ * Generic fetch wrapper with error handling.
+ * @param {string} endpoint
+ * @param {RequestInit & { authRole?: 'user' | 'admin' | 'none' }} options - authRole defaults to 'user' (sends user JWT)
  */
 const fetchAPI = async (endpoint, options = {}) => {
   try {
-    console.log(`🔵 [API Request] ${endpoint}`, {
-      method: options.method || 'GET',
-      body: options.body ? JSON.parse(options.body) : undefined,
-      timestamp: new Date().toISOString()
-    });
+    const { authRole = 'user', ...fetchOpts } = options;
+    const authHeaders = {};
+    if (authRole === 'user') {
+      const userT = typeof localStorage !== 'undefined' ? localStorage.getItem(USER_TOKEN_KEY) : null;
+      const adminT = typeof localStorage !== 'undefined' ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+      const t = userT || adminT;
+      if (t) authHeaders.Authorization = `Bearer ${t}`;
+    } else if (authRole === 'admin') {
+      const t = typeof localStorage !== 'undefined' ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+      if (t) authHeaders.Authorization = `Bearer ${t}`;
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...authHeaders,
+        ...fetchOpts.headers,
       },
-      ...options,
+      ...fetchOpts,
     });
 
-    if (!response.ok) {
-      console.error(`❌ [API Error] ${endpoint}`, {
-        status: response.status,
-        statusText: response.statusText,
-        url: `${API_BASE_URL}${endpoint}`
-      });
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    let data = null;
+    if (isJson) {
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
     }
 
-    const data = await response.json();
-    console.log(`✅ [API Response] ${endpoint}`, {
-      success: data.success,
-      dataLength: Array.isArray(data.data) ? data.data.length : data.data ? Object.keys(data.data).length : 0,
-      data: data,
-      timestamp: new Date().toISOString()
-    });
+    // Treat both HTTP failure and { success: false } payloads as errors so callers handle them uniformly.
+    const isPayloadFailure = data && typeof data === 'object' && data.success === false && (data.error || data.message);
+    if (!response.ok || isPayloadFailure) {
+      const msg =
+        data?.message ||
+        data?.error ||
+        (response.status === 401 ? 'Invalid email or password' : null) ||
+        `API Error: ${response.status}`;
+      const err = new Error(typeof msg === 'string' ? msg : response.statusText);
+      err.status = response.status;
+      err.data = data;
+      throw err;
+    }
+
     return data;
   } catch (error) {
-    console.error(`❌ [API Error] ${endpoint}`, {
-      error: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
     throw error;
   }
+};
+
+/**
+ * Public auth (no JWT)
+ */
+export const authAPI = {
+  /** Public: how many dashboard_users rows exist (for login help text) */
+  status: () => fetchAPI('/api/auth/status', { method: 'GET', authRole: 'none' }),
+  login: (email, password) =>
+    fetchAPI('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+      authRole: 'none',
+    }),
+  verifyEmailGet: (token) =>
+    fetch(`${API_BASE_URL || ''}/api/auth/verify-email?token=${encodeURIComponent(token)}`, {
+      headers: { 'Content-Type': 'application/json' },
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.message || data.error || r.statusText);
+      return data;
+    }),
+  forgotPassword: (email) =>
+    fetchAPI('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+      authRole: 'none',
+    }),
+  resetPassword: (token, newPassword) =>
+    fetchAPI('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+      authRole: 'none',
+    }),
+};
+
+export const adminAuthAPI = {
+  login: (username, password) =>
+    fetchAPI('/api/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+      authRole: 'none',
+    }),
+  listUsers: () => fetchAPI('/api/admin/users', { method: 'GET', authRole: 'admin' }),
+  createUser: (email, password, firstName, lastName, verificationMode) =>
+    fetchAPI('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, firstName, lastName, verificationMode }),
+      authRole: 'admin',
+    }),
+  deleteUser: (id) =>
+    fetchAPI(`/api/admin/users/${id}`, { method: 'DELETE', authRole: 'admin' }),
+  resendVerification: (id) =>
+    fetchAPI(`/api/admin/users/${id}/resend-verification`, { method: 'POST', authRole: 'admin' }),
+  /** Mark user verified without email link (admin only) */
+  verifyUser: (id) =>
+    fetchAPI(`/api/admin/users/${id}/verify`, { method: 'POST', authRole: 'admin' }),
+  /** Update a user's password (admin only) */
+  updateUserPassword: (id, password) =>
+    fetchAPI(`/api/admin/users/${id}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password }),
+      authRole: 'admin',
+    }),
+};
+
+/** User profile API */
+export const profileAPI = {
+  getMe: () => fetchAPI('/api/auth/me', { method: 'GET', authRole: 'user' }),
+  update: (firstName, lastName) =>
+    fetchAPI('/api/auth/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ firstName, lastName }),
+      authRole: 'user',
+    }),
+};
+
+/** Admin profile API */
+export const adminProfileAPI = {
+  getMe: () => fetchAPI('/api/admin/profile', { method: 'GET', authRole: 'admin' }),
+  update: (firstName, lastName, username) =>
+    fetchAPI('/api/admin/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ firstName, lastName, username }),
+      authRole: 'admin',
+    }),
 };
 
 /**
@@ -99,10 +207,12 @@ export const sitesAPI = {
   },
 };
 
-// When 1–28 site IDs (dept numbers) selected, add siteIds to query; when all 29 or none, omit (backend = all sites).
+// When a strict subset of dept IDs is selected, add siteIds; when all departments or none, omit (backend = all sites).
+const HSRL_DEPT_COUNT = ALL_HSRL_SITES.length;
+
 function appendSiteIdsToParams(params, siteIds) {
   const ids = Array.isArray(siteIds) ? siteIds : (siteIds != null ? [siteIds] : []);
-  if (ids.length > 0 && ids.length < 29) {
+  if (ids.length > 0 && ids.length < HSRL_DEPT_COUNT) {
     params.set('siteIds', ids.join(','));
   }
 }
@@ -426,6 +536,14 @@ export const dashboardAPI = {
     return response.data;
   },
 
+  /** Metrics Comparison page: all site rows in one request (same maths as separate petrol-data calls). */
+  getMetricsComparisonSites: async (startDate, endDate, siteIds) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    appendSiteIdsToParams(params, siteIds);
+    const response = await fetchAPI(`/api/dashboard/petrol-data/metrics-comparison-sites?${params}`);
+    return response.data;
+  },
+
   /**
    * Get net sales breakdown by nominal code for specific date range
    * @param {string} startDate - Start date in YYYY-MM-DD format
@@ -443,7 +561,7 @@ export const dashboardAPI = {
   },
 
   /**
-   * Get fuel sales (£) by site for all 29 sites (for Total Site Revenue breakdown modal)
+   * Get fuel sales (£) by site for all HSRL departments (for Total Site Revenue breakdown modal)
    */
   getPetrolFuelSalesBySite: async (startDate, endDate) => {
     const params = new URLSearchParams({ startDate, endDate });
@@ -472,7 +590,8 @@ export const dashboardAPI = {
   },
 
   /**
-   * Get ROI (Net Profit / Investment × 100) for date range. Net Profit = 82 N/Cs, Investment = 15 N/Cs.
+   * ROI = Total Net Profit (same as /total-net-profit, respects siteIds) ÷ cumulative Investment × 100.
+   * Investment = company-wide: those N/Cs across all departments, cumulative from earliest DB posting through endDate.
    */
   getPetrolROI: async (startDate, endDate, siteIds) => {
     const params = new URLSearchParams({ startDate, endDate });
@@ -482,7 +601,8 @@ export const dashboardAPI = {
   },
 
   /**
-   * Get ROI by month for trend chart (Net Profit / Investment × 100 per month).
+   * Monthly trend: { months, bySite }. P&L/ROI aggregate + per selected site; cumulative investment company-wide.
+   * Uses the requested start/end (no May clamp).
    */
   getPetrolROIMonthlyTrend: async (startDate, endDate, siteIds) => {
     const params = new URLSearchParams({ startDate, endDate });
@@ -492,12 +612,22 @@ export const dashboardAPI = {
   },
 
   /**
-   * Get EBITA (sum of 69 N/Cs, raw amounts — negative signs preserved).
+   * Get EBITDA metric from /ebita (gross profit + misc − overheads excl. depreciation & loan interest).
    */
   getPetrolEBITA: async (startDate, endDate, siteIds) => {
     const params = new URLSearchParams({ startDate, endDate });
     appendSiteIdsToParams(params, siteIds);
     const response = await fetchAPI(`/api/dashboard/petrol-data/ebita?${params}`);
+    return response.data;
+  },
+
+  /**
+   * Total Net Profit = EBITDA − Depreciation − Loan Interest (7750,7705,7752,7753; 7751 excluded) − Corporation Tax (9000)
+   */
+  getPetrolTotalNetProfit: async (startDate, endDate, siteIds) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    appendSiteIdsToParams(params, siteIds);
+    const response = await fetchAPI(`/api/dashboard/petrol-data/total-net-profit?${params}`);
     return response.data;
   },
 
@@ -532,11 +662,41 @@ export const dashboardAPI = {
   },
 
   /**
+   * Get wages for Overhead Cost Breakdown card (N/C 7000-7003, 7005-7008, 7010)
+   */
+  getPetrolWagesForOverheads: async (startDate, endDate, siteIds) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    appendSiteIdsToParams(params, siteIds);
+    const response = await fetchAPI(`/api/dashboard/petrol-data/wages-for-overheads?${params}`);
+    return response.data;
+  },
+
+  /**
    * Get monthly overhead cost trends (Labour, Utilities, Maintenance, Other) for charts
    */
   getPetrolOverheadTrends: async (startDate, endDate) => {
     const params = new URLSearchParams({ startDate, endDate });
     const response = await fetchAPI(`/api/dashboard/petrol-data/overhead-trends?${params}`);
+    return response.data;
+  },
+
+  /**
+   * Get shop profit: Sales (4032,4034,4036,4037,4039,5035) − Cost (5032–5034,5036,5037,5039,5042)
+   */
+  getPetrolShopProfit: async (startDate, endDate, siteIds) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    appendSiteIdsToParams(params, siteIds);
+    const response = await fetchAPI(`/api/dashboard/petrol-data/shop-profit?${params}`);
+    return response.data;
+  },
+
+  /**
+   * Get valet profit: Sales (4028,4029,4030,4031,4017) − Cost (5028,5029,5030,5031)
+   */
+  getPetrolValetProfit: async (startDate, endDate, siteIds) => {
+    const params = new URLSearchParams({ startDate, endDate });
+    appendSiteIdsToParams(params, siteIds);
+    const response = await fetchAPI(`/api/dashboard/petrol-data/valet-profit?${params}`);
     return response.data;
   },
 
@@ -686,7 +846,7 @@ export const dashboardAPI = {
   },
 
   /**
-   * Get PPL comparison (Avg PPL vs Actual PPL) across all sites
+   * Get PPL comparison (Gross PPL and overhead pence/litre; chart shows Gross PPL and PPL after O/H) across all sites
    * @param {string} startDate - Start date in YYYY-MM-DD format
    * @param {string} endDate - End date in YYYY-MM-DD format
    */

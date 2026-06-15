@@ -1,0 +1,48 @@
+---
+description: Change audit log — after every substantive agent edit, append an entry to CHANGE_LOG.md at the repo root
+alwaysApply: true
+---
+
+# Change Audit Log Rule
+
+## When to log
+
+After completing any task that touches the repo, append an entry to `CHANGE_LOG.md` (repo root).
+
+**Always log:**
+- Multi-file edits
+- Behavior-changing logic (calculations, auth, routing, email, API shape)
+- Any file delete, rename, or move
+- Security / auth / env var changes
+- New features or endpoints
+
+**May skip:** trivial one-line typo/copy fixes that have zero behavior impact.
+
+## Where
+
+Append to **`CHANGE_LOG.md`** at the **repo root** (not inside `backend/` or `frontend/`).
+New entries go at the **bottom** (append-only; newest = last).
+
+## Entry template
+
+Separate each entry with `---`. Fill every field — no skipping.
+
+```
+---
+**Timestamp:** 2026-04-10T14:30:00Z
+**Summary:** One short line of intent.
+**Files:**
+- path/relative/to/repo/root.ext
+- another/file.ext
+**Details:**
+What changed — API shape, env vars added/removed, logic that changed, why.
+No large code blobs; reference the file + line number instead.
+**Undo / Rollback:**
+- Uncommitted: `git restore <file>`
+- Committed: `git revert <sha>` or manually revert <field> in <file> back to <prior value>.
+```
+
+## Git reminder
+
+Git is the binary-exact source of truth. `CHANGE_LOG.md` is the human-readable narrative and pointer layer — both must stay in sync.
+Commit `CHANGE_LOG.md` together with the code changes it describes.

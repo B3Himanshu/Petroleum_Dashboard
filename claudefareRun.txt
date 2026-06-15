@@ -1,0 +1,32 @@
+You can do everything manually like this.
+
+1. Run the app (if it’s not already)
+cd c:\Users\tgaur\Desktop\company\company\HSRLDatabase\HSRL_ui
+npm run dev
+2. Terminal A – tunnel to the frontend (Vite, usually 8080)
+cloudflared tunnel --url http://localhost:8080
+Copy the https://…trycloudflare.com URL from the output.
+
+3. Terminal B – tunnel to the API (backend, usually 2000)
+cloudflared tunnel --url http://localhost:2000
+Copy the https://…trycloudflare.com URL from the output.
+
+If your frontend uses another port (check the Vite line in the terminal), use that instead of 8080, e.g. http://localhost:5173.
+
+4. Put URLs in .env
+HSRL_ui\backend\.env (use the frontend tunnel URL):
+
+FRONTEND_URL=https://YOUR-FRONTEND-TUNNEL.trycloudflare.com
+(If you use DEV_TUNNEL_HOST, set it to the same host as the frontend tunnel.)
+
+HSRL_ui\frontend\.env (use the API tunnel URL):
+
+VITE_API_URL=https://YOUR-API-TUNNEL.trycloudflare.com
+5. Restart dev
+Stop npm run dev (Ctrl+C) and run npm run dev again so Vite picks up VITE_API_URL.
+
+One-liner summary: two separate commands you type yourself:
+
+cloudflared tunnel --url http://localhost:8080
+cloudflared tunnel --url http://localhost:2000
+(in two terminals), then paste the two HTTPS URLs into backend + frontend .env as above.

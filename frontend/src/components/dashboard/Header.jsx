@@ -1,9 +1,49 @@
-import { Bell, Moon, Sun } from "lucide-react";
-import { useTheme } from "@/contexts/ThemeContext";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { ADMIN_TOKEN_KEY } from "@/services/api";
 
-export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueInMillions = false, onToggleRevenueInMillions }) => {
-  const { theme, toggleTheme } = useTheme();
+const ADMIN_PROFILE_KEY = 'hsrl_admin_profile';
+
+function useWelcomeInfo() {
+  const { user } = useAuth();
+
+  // User session
+  if (user?.email) {
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+    return { name: fullName || user.email.split("@")[0], isAdmin: false };
+  }
+
+  // Admin session — read cached profile first, fallback to JWT
+  const adminRaw = typeof localStorage !== "undefined" ? localStorage.getItem(ADMIN_TOKEN_KEY) : null;
+  if (adminRaw) {
+    try {
+      const payload = JSON.parse(atob(adminRaw.split(".")[1]));
+      if (payload.role === "admin" && Date.now() < payload.exp * 1000) {
+        const cached = localStorage.getItem(ADMIN_PROFILE_KEY);
+        let name = payload.username || "Admin";
+        if (cached) {
+          const profile = JSON.parse(cached);
+          const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+          if (fullName) name = fullName;
+        }
+        return { name, isAdmin: true };
+      }
+    } catch {}
+  }
+  return null;
+}
+
+import { Menu } from "lucide-react";
+
+export const Header = ({
+  sidebarOpen,
+  onToggleSidebar,
+  totalSales,
+  showTotalSales = true,
+  showRevenueInMillions = false,
+  onToggleRevenueInMillions,
+}) => {
 
   // Format total sales value
   const formatTotalSales = (amount) => {
@@ -18,55 +58,65 @@ export const Header = ({ sidebarOpen, onToggleSidebar, totalSales, showRevenueIn
   };
 
   const salesFormatted = formatTotalSales(Math.abs(totalSales || 0));
+  const welcomeInfo = useWelcomeInfo();
+  const { theme, toggleTheme, darkModeToggleEnabled, uiConfigHydrated } = useTheme();
+  const isDarkTheme = theme === "dark";
+  const showThemeToggle = uiConfigHydrated && darkModeToggleEnabled;
 
   return (
-    <header className="h-14 sm:h-16 bg-card border-b border-border flex items-center justify-between px-3 sm:px-4 lg:px-6">
-      {/* Spacer for layout */}
-      <div className="flex-1" />
+    <header className="flex w-full min-w-0 overflow-x-hidden shrink-0 flex-col gap-1 bg-transparent px-3 py-1.5 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-4 sm:py-0 lg:px-6">
+      {/* Row 1 — [≡ menu] + company name on same line at all sizes */}
+      <div className="flex w-full min-w-0 items-center gap-2 sm:min-h-0 sm:w-auto sm:flex-1 sm:gap-3">
+        <button
+          onClick={onToggleSidebar}
+          className="flex flex-shrink-0 p-1 sm:p-1.5 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors border border-border/60"
+          type="button"
+          aria-label="Toggle navigation menu"
+          aria-expanded={sidebarOpen}
+        >
+          <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
+        </button>
+        <div className="min-w-0 flex-1 sm:flex-none">
+          <span className="font-bold uppercase tracking-wide text-foreground block truncate text-sm sm:text-xs md:text-sm lg:text-base sm:max-w-[min(100%,28rem)]">
+            HIGHWAY STOPS RETAIL LIMITED
+          </span>
+        </div>
+      </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-4">
-        {/* Total Sales - Blue Button Style - Show on mobile too */}
-        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 lg:py-2.5 rounded-lg font-semibold shadow-sm bg-primary text-primary-foreground">
-          <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Total Sales:</span>
-          <span className="text-xs sm:text-sm font-semibold sm:hidden">Sales:</span>
-          <div className="flex items-baseline gap-0.5 sm:gap-1">
-            <span className="text-xs sm:text-sm font-medium opacity-90">£</span>
-            <span className="text-sm sm:text-base font-bold">{salesFormatted.number}</span>
-            {salesFormatted.unit && <span className="text-xs sm:text-sm font-semibold opacity-90">{salesFormatted.unit}</span>}
-          </div>
+      {/* Row 2 — mobile: sales + toggle + HSRL. sm+: right-aligned cluster. */}
+      <div className="flex w-full min-w-0 items-center gap-1.5 sm:w-auto sm:justify-end sm:gap-2 lg:gap-4">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 sm:flex-none sm:gap-2 sm:flex-nowrap sm:gap-y-0">
+          {showTotalSales && (
+            <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 lg:py-2.5 rounded-lg font-semibold shadow-sm bg-primary text-primary-foreground">
+              <span className="text-xs sm:text-sm font-semibold hidden sm:inline">Total Sales:</span>
+              <span className="text-xs font-semibold sm:hidden">Sales:</span>
+              <div className="flex items-baseline gap-0.5 sm:gap-1">
+                <span className="text-xs sm:text-sm font-medium opacity-90">£</span>
+                <span className="text-sm sm:text-lg font-bold">{salesFormatted.number}</span>
+                {salesFormatted.unit && <span className="text-xs sm:text-sm font-semibold opacity-90">{salesFormatted.unit}</span>}
+              </div>
+            </div>
+          )}
+
+          {typeof onToggleRevenueInMillions === "function" && (
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-border bg-background">
+              <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Show M</span>
+              <Switch checked={showRevenueInMillions} onCheckedChange={onToggleRevenueInMillions} />
+            </div>
+          )}
+
+          {showThemeToggle && (
+            <div className="flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-border bg-background">
+              <span className="text-sm text-muted-foreground whitespace-nowrap hidden sm:inline">Dark UI</span>
+              <Switch checked={isDarkTheme} onCheckedChange={toggleTheme} />
+            </div>
+          )}
         </div>
 
-        {/* Toggle: Revenue card in millions vs exact breakdown */}
-        {typeof onToggleRevenueInMillions === "function" && (
-          <div className="flex items-center gap-2 px-2 py-1 rounded-lg border border-border bg-background">
-            <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">Show M</span>
-            <Switch checked={showRevenueInMillions} onCheckedChange={onToggleRevenueInMillions} />
-          </div>
-        )}
-
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-1.5 sm:p-2 rounded-lg hover:bg-muted transition-colors"
-          title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-        >
-          {theme === "light" ? (
-            <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-          ) : (
-            <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-          )}
-        </button>
-
-        <button className="relative p-1.5 sm:p-2 rounded-full hover:bg-muted transition-colors">
-          <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-          <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-destructive rounded-full" />
-        </button>
-
-        <div className="flex items-center gap-2 sm:gap-3 pl-1.5 sm:pl-2 lg:pl-4 border-l border-border">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-primary to-chart-blue flex items-center justify-center">
-            <span className="text-xs sm:text-xs lg:text-sm font-bold text-primary-foreground">
-              PRL
+        <div className="flex shrink-0 items-center border-l border-border pl-1.5 sm:pl-2 lg:pl-4">
+          <div className="h-6 sm:h-8 lg:h-10 px-1.5 sm:px-2.5 lg:px-3 rounded-lg sm:rounded-full bg-gradient-to-br from-primary to-chart-blue flex items-center justify-center">
+            <span className="text-[10px] sm:text-sm lg:text-base font-bold text-primary-foreground tracking-wide">
+              HSRL
             </span>
           </div>
         </div>

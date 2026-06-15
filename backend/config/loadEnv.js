@@ -1,0 +1,9 @@
+/**
+ * Load backend/.env before other modules read process.env (import this file first in server.js).
+ */
+import dotenv from 'dotenv';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '..', '.env'), override: true });

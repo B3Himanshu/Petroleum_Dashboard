@@ -29,7 +29,7 @@ export const PetrolKPICard = ({ totalFuelVolume, loading, error, onClick }) => {
             <Fuel className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight">
+            <p className="text-xs sm:text-sm text-muted-foreground font-semibold uppercase tracking-wide leading-tight">
               Total Fuel Volume
             </p>
           </div>
@@ -45,19 +45,19 @@ export const PetrolKPICard = ({ totalFuelVolume, loading, error, onClick }) => {
           </div>
         ) : error ? (
           <div className="space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold text-destructive tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-destructive tracking-tight leading-tight">
               Error
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               {error}
             </p>
           </div>
         ) : (
           <>
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-foreground tracking-tight leading-tight">
               {formatVolume(totalFuelVolume || 0)}
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               Nominal codes: 4000, 4001, 4002, 4003, 4008
             </p>
           </>
@@ -67,7 +67,7 @@ export const PetrolKPICard = ({ totalFuelVolume, loading, error, onClick }) => {
       {/* Decorative gradient overlay */}
       <div 
         className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-10 transition-opacity duration-500"
-        style={{ backgroundColor: '#3b82f6' }}
+        style={{ backgroundColor: 'hsl(var(--chart-blue))' }}
       />
     </div>
   );

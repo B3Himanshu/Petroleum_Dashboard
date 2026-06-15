@@ -1,0 +1,252 @@
+# HSRL — Quick Insights Matrix KPI Cards (7 cards)
+
+Source of truth for **which cards exist** and **how each number is built**:  
+`frontend/src/pages/LatestPetrol.jsx` (Quick Insights grid) + `backend/routes/petrolDataSage.js`.
+
+Data table: **`sage_audit_journal`**  
+- `nominal_code` — nominal (N/C)  
+- `dept_number` — site (0–19); filtered by selected sites  
+- `sage_date` (or `DB_DATE_COLUMN`) — transaction **Date** (not Posted Date)  
+- `amount` (or `DB_AMOUNT_COLUMN` / fallback `net`) — monetary value  
+
+---
+
+## Summary table (7 matrix KPI cards)
+
+| # | Card (UI) | Primary API(s) | Headline metric |
+|---|-----------|----------------|-----------------|
+| 1 | Total Site Revenue | `GET /petrol-data/net-sales`, `GET /petrol-data/net-sales-breakdown` | `totalRevenue` (same as `totalNetSales` in response) |
+| 2 | Total Fuel Volume (+ Avg PPL in card) | `GET /petrol-data/fuel-volume`, `GET /petrol-data/avg-ppl`, breakdown/transition endpoints | Litres from volume column or **parsed `details`** on fuel sales N/Cs |
+| 3 | PPL After Overheads (combined with Avg PPL context) | `GET /petrol-data/avg-ppl`, `GET /petrol-data/actual-ppl` | `pplAfterOverheads`; `actualPPL` = overhead **per unit** in pence |
+| 4 | Gross Profit | `GET /petrol-data/profit`, `GET /petrol-data/profit-breakdown`, `GET /petrol-data/profit-margin`, `GET /petrol-data/shop-profit`, `GET /petrol-data/valet-profit` | **Fuel** (from breakdown) + **Shop** + **Valet** (magnitudes on frontend) |
+| 5 | Total Net Profit | `GET /petrol-data/total-net-profit` | `totalNetProfit` = EBITDA − depreciation − loan interest − corp tax |
+| 6 | Labour Cost % | `GET /petrol-data/labour-cost-breakdown`, `GET /petrol-data/labour-cost`, `GET /petrol-data/net-sales` | `(labour ÷ fuel sales) × 100` |
+| 7 | EBITDA (EBITA in API) | `GET /petrol-data/ebita` | `ebita` = gross profit + misc income − overheads (EBITA bucket) |
+
+---
+
+## Card 1 — Total Site Revenue
+
+### What the user sees
+- Main figure: **total site revenue** for date range + site filter.
+- Breakdown modal: splits by **fuel / shop / valet** nominal groups; optional “other income” lines for modal (subset of 44xx).
+
+### Backend formula (`/net-sales`)
+- **Total site revenue** = `SUM(amount)` [or `net` fallback] where  
+  `nominal_code` ∈ **TOTAL_SITE_REVENUE_CODES**:
+
+```
+4000, 4001, 4002, 4003, 4004   — core fuel sales
+4100, 4101, 4102               — bunkering (added to fuel subtotal in response)
+4032, 4034, 4036, 4037, 5035   — shop (incl. Paypoint commission 5035)
+4028, 4029, 4030, 4031, 4017   — coffee / valet / Costa-style revenue
+```
+
+- **`fuelSales`** returned = `SUM(4000–4004)` + `SUM(4100,4101,4102)` (bunkering included in fuel subtotal).
+- **`totalRevenue`** = full sum over **TOTAL_SITE_REVENUE_CODES** (same as `totalNetSales` in JSON).
+
+### Breakdown (`/net-sales-breakdown`)
+- Same N/C universe; **GROUP BY nominal_code** → per-code `netSales` / `value` + `transactionCount`.
+
+### Frontend breakdown buckets (modal grouping in `LatestPetrol.jsx`)
+- **Fuel only (for list):** `4000–4004`, `4100`, `4101`, `4102`
+- **Shop:** `4032`, `4034`, `4036`, `4037`, `5035`
+- **Valet / coffee:** `4028`, `4029`, `4030`, `4031`, `4017`
+- **Other income (modal slice):** `4400`, `4401`, `4407`, `4410` *(subset; full misc for EBITDA is larger — see Card 7)*
+
+### Signs / display
+- Sums use **raw ledger signs** where applicable; UI may display **absolute** currency for readability — match existing `formatCurrency` behaviour.
+
+---
+
+## Card 2 — Total Fuel Volume
+
+### What the user sees
+- Primary: **total fuel volume (litres)**.
+- If volume is missing: fallback subtitle / value may show **fuel sales £** (from net-sales) so the card is not empty.
+- Card also surfaces **Avg PPL** from `/avg-ppl` when wired.
+- Breakdowns: **by site / by nominal / transition** via dedicated endpoints.
+
+### Nominal codes for volume
+- Volume is attributed to **fuel sales lines**: `4000`, `4001`, `4002`, `4003`, `4004`.
+- Source order (backend):
+  1. **`SUM(volume)`** on those rows in range + site filter, if column exists.
+  2. Else **parse `details`**: segments like `LABEL/volume` (litres), split by `|`, `;`, or newlines — same idea as `parseDetailsToVolumeSegments` / `getTotalFuelVolumeFromDetails`.
+
+### Related APIs
+- `GET /petrol-data/fuel-volume` — headline total + flags (`volumeFromDetails`, bunkered split if returned).
+- `GET /petrol-data/fuel-volume-breakdown` — breakdown list + `totalVolume`.
+- `GET /petrol-data/fuel-volume-transition-breakdown` — transition-style breakdown for modal.
+
+### Avg PPL (shown with this card)
+- From **`GET /petrol-data/avg-ppl`** (see Card 3 for formula).
+
+---
+
+## Card 3 — PPL After Overheads (Quick Insights combined card)
+
+### What the user sees
+- **PPL after overheads** (pence-style metric).
+- Supporting lines in modal/state: **Avg PPL**, **overhead per unit** (`actualPPL` from API), **total overheads**, **denominator** (litres vs £ sales).
+
+### Avg PPL — `GET /petrol-data/avg-ppl`
+- **`fuelProfit`**: from `getGrossProfit()` — fuel leg only:
+  - Revenue: `NET_PROFIT_REVENUE_CODES` = `4000–4004`, `4100`, `4101`, `4102`
+  - Cost: `NET_PROFIT_COST_CODES` = `5000–5004`, `5005`, `5041`, `5050`
+  - `fuelProfit = |fuelRevenue| − |fuelCost|` (magnitude basis in helper)
+- **Denominator:**  
+  `volumeLitres` if `getTotalFuelVolumeFromDetails` > 0, else **`|SUM(4000–4004)|`** (fuel sales £), else `0`.
+- **`avgPPL`** = `(fuelProfit / denominator) × 100`
+
+### PPL after OH — `GET /petrol-data/actual-ppl`
+- **`totalOverheads`**: `SUM(amount)` where `nominal_code` ∈ **`EBITA_OVERHEADS_SQL`**  
+  (overheads + wages bucket **minus** depreciation N/Cs `8200–8207` **minus** loan interest code **`7750`** only from that bucket construction in `petrolDataSage.js`).
+- **`overheadsMag`** = `|totalOverheads|`
+- **Denominator:** litres if > 0, else `|fuel sales 4000–4004|`, else `|total REVENUE_SQL|`, else `0`.
+- **`actualPPL`** (API name) = overhead **per litre or per £** in same units as avg PPL:  
+  `(overheadsMag / denominator) × 100`
+- **`pplAfterOverheads`** = `((fuelProfit − overheadsMag) / denominator) × 100`
+
+### Frontend composition (`LatestPetrol.jsx`)
+- Merges `avg-ppl` + `actual-ppl`.
+- **`ohDeduction`** shown as `avgPPL − overheadPerUnitPence` (conceptual “PPL lost to overheads per unit”).
+
+---
+
+## Card 4 — Gross Profit
+
+### What the user sees
+- Headline **Gross Profit** = fuel + shop + valet (all as **positive magnitudes** on the dashboard card).
+- Optional **gross margin %** on the same card data: `grossProfit / |totalRevenue| × 100` using profit API revenue where available.
+
+### Frontend logic (authoritative for the card)
+1. **Fuel profit**  
+   - Prefer **`profit-breakdown`** → `totalProfit` (this is **net profit from fuel P&L codes** in `getNetProfitRevenueCost`: revenue + signed cost = `totalRevenue + totalCostRaw`).  
+   - Else **`profit`** → `totalProfit`.  
+   - Display fuel leg: **`fuelMag = |rawFuelProfit|`**
+
+2. **Shop profit** — `GET /petrol-data/shop-profit` → `shopProfit`; **`shopMag = |shopProfit|`**
+
+3. **Valet profit** — `GET /petrol-data/valet-profit` → `valetProfit`; **`valetMag = |valetProfit|`**
+
+4. **Gross Profit (card)** = `fuelMag + shopMag + valetMag`
+
+### Backend definitions (for breakdown modals)
+
+**Fuel (shop-profit / valet-profit style magnitudes in `getGrossProfit`):**
+- `fuelProfit = |SUM(NET_PROFIT_REVENUE)| − |SUM(NET_PROFIT_COST)|`
+
+**Shop profit** (`/shop-profit`):
+- Sales: `4032`, `4034`, `4036`, `4037`, `5035`
+- Cost: `5032`, `5033`, `5034`, `5036`, `5037`, `5042`
+- `shopProfit = |shopSales| − |shopCost|` (with `shopCost = |raw cost sum|`)
+
+**Valet profit** (`/valet-profit`):
+- Sales: `4028`, `4029`, `4030`, `4031`, `4017`
+- Cost: `5015`, `5028`, `5029`, `5030`, `5031`, `5043`, `5044`
+- `valetProfit = |valetSales| − |valetCost|`
+
+### Important consistency note
+- **`profit-breakdown` total** uses **signed** nominal rows then `netProfit = totalRevenue + totalCostRaw`; the **Gross Profit card** then takes **`abs`** of that for the fuel leg.  
+- **`getGrossProfit`** uses a slightly different fuel composition (magnitude of rev − magnitude of cost). For Flutter, **call the same APIs as the web app** or align with backend `getGrossProfit` if you unify.
+
+---
+
+## Card 5 — Total Net Profit
+
+### What the user sees
+- **Total Net Profit** after financing/tax style deductions from EBITDA.
+
+### Backend — `GET /petrol-data/total-net-profit`
+
+**Step A — EBITDA (same construction as `/ebita` inline in this route)**  
+`ebita = grossProfit + miscIncome − overheads`  
+where:
+- `grossProfit` = fuel + shop + valet as in **`/ebita`** (see Card 7)
+- `miscIncome` = `|SUM(MISC_INCOME_CODES)|`
+- `overheads` = `|SUM(EBITA_OVERHEADS_SQL)|`
+
+**Step B — Deductions**
+- **Depreciation:** `8200`, `8201`, `8202`, `8203`, `8204`, `8206`, `8207` → sum **magnitudes**
+- **Loan interest:** `7750`, `7705`, `7752`, `7753` (**`7751` excluded**) → sum **magnitudes**
+- **Corporation tax:** `9000` → **magnitude**
+
+**Step C — Formula**  
+`totalNetProfit = ebita − depreciation − loanInterestTotal − corporationTax`
+
+### Response fields useful for breakdown UI
+- `ebita`, `depreciation`, `depreciationBreakdown`, `loanInterestTotal`, `loanInterestBreakdown`, `corporationTax`, `totalNetProfit`
+
+---
+
+## Card 6 — Labour Cost % of Fuel Sales
+
+### What the user sees
+- **Percentage**: labour ÷ **fuel sales** × 100.
+- Breakdown: typically **7000, 7001, 7005** rows from labour-cost-breakdown.
+
+### Backend — `GET /petrol-data/labour-cost` / `labour-cost-breakdown`
+- Labour N/Cs (full set in routes): `7000`, `7001`, `7002`, `7003`, `7005` (+ related in other endpoints).
+- **Margin card on frontend** filters breakdown to: **`7000`, `7001`, `7005`** only when summing for the percentage (see `LABOUR_MARGIN_CODES` in `LatestPetrol.jsx`).
+- If that filtered sum is tiny, fallback to **`labour-cost` → `totalLabourCost`** (magnitude).
+
+### Denominator
+- **`GET /petrol-data/net-sales`** → `fuelSales` = `SUM(4000–4004) + SUM(4100–4102)`; frontend uses **`Math.abs(fuelSalesForLabour)`**.
+
+### Formula
+`labourCostPercent = (labourCost / fuelSalesForLabour) × 100` (if fuel sales ≠ 0, else 0).
+
+---
+
+## Card 7 — EBITDA (`/ebita` — labelled EBITDA in UI, key `ebita` in JSON)
+
+### What the user sees
+- **EBITDA** = operating picture: gross profit + miscellaneous income − overheads (wages-inclusive bucket, excl. depreciation & specific loan interest exclusion from bucket — see backend).
+
+### Backend formula — `GET /petrol-data/ebita`
+
+**Gross profit components (magnitude style):**
+- **Fuel:** `fuelProfit = |SUM(NET_PROFIT_REVENUE)| − |SUM(NET_PROFIT_COST)|`  
+  - Revenue: `4000–4004`, `4100`, `4101`, `4102`  
+  - Cost: `5000–5004`, `5005`, `5041`, `5050`
+- **Shop:** `|shopSales| − |shopCost|` (same N/Cs as `/shop-profit`)
+- **Valet:** `|valetSales| − |valetCost|` (same N/Cs as `/valet-profit`)
+- **`grossProfit`** = `fuelProfit + shopProfit + valetProfit`
+
+**Miscellaneous income** — `MISC_INCOME_CODES`:  
+`4400`, `4401`, `4402`, `4404`, `4405`, `4407`, `4410`, `4412`, `4413`, `4415`, `4416`, `4417`, `4418`
+→ **`miscIncome`** = `|SUM(...)`
+
+**Overheads (EBITA bucket)** — `SUM` where `EBITA_OVERHEADS_SQL`:  
+starts from **large overhead + wages** list (`OVERHEADS_PLUS_WAGES_CODES`) then **removes**:
+- **Depreciation:** `8200–8207` (8205 not in list)
+- **Loan interest for this bucket:** **`7750` only** (per `LOAN_INTEREST_CODES` in file)
+
+→ **`overheads`** = `|SUM(EBITA_OVERHEADS_SQL)|`
+
+**EBITDA (API field `ebita`)**  
+`ebita = grossProfit + miscIncome − overheads`
+
+### Response extras
+- Also returns `depreciation`, `loanInterest` as **informational** from related queries in same handler; the **EBITDA line does not subtract** them (they are removed from **Total Net Profit** instead).
+
+---
+
+## Flutter / API checklist
+
+1. Pass **startDate, endDate, siteIds** consistently to every `/petrol-data/*` call.  
+2. Prefer **server-computed** numbers for parity with the web app.  
+3. If recomputing client-side, copy **exact code lists** from `petrolDataSage.js` (they change with wireframe).  
+4. Respect **`DB_AMOUNT_COLUMN`** / **`net` fallback** if you mirror SQL in another service.  
+5. **Volume** may be **litres**; **PPL** metrics use **× 100** vs denominator — keep units consistent in UI labels (`p`).
+
+---
+
+## File references
+
+| Area | File |
+|------|------|
+| Quick Insights layout & fetch orchestration | `frontend/src/pages/LatestPetrol.jsx` |
+| Petrol data APIs | `frontend/src/services/api.js` (`getPetrol*` methods) |
+| Nominal logic & routes | `backend/routes/petrolDataSage.js` |
+| Display names for N/C | `backend/data/nominalCodeNames.js` |

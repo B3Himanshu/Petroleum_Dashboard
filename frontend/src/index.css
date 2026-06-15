@@ -6,51 +6,68 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    /* UI_approach.md §3 — reference tokens (hex/rgba) for porting / glass math */
+    --bg-gradient-1: #f3f8ff;
+    --bg-gradient-2: #eaf3ff;
+    --bg-gradient-3: #f8fbff;
+    --bg-gradient-accent: #b5d9ff;
+    --bg-gradient-accent-2: #d3c8ff;
+    --accent-ref: #4f6df5;
+    --accent-hover-ref: #3f5ce8;
+    --text-ref: #1e2b37;
+    --text-muted-ref: #607283;
+    --glass-border-rgb: 128 155 185;
+    --glass-shadow-card-ref: 0 10px 30px rgb(86 120 156 / 0.14);
+    --glass-shadow-elevated-ref: 0 18px 44px rgb(77 108 142 / 0.2);
+    --glass-blur: 16px;
+    --glass-blur-heavy: 24px;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    /* Semantic HSL (Tailwind hsl(var(--token))) — accent #4f6df5 → 231 89% 64% */
+    --background: 210 50% 98%;
+    --foreground: 210 35% 17%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --card: 210 45% 99.5%;
+    --card-foreground: 210 35% 17%;
 
-    --primary: 217 91% 60%;
+    --popover: 210 45% 99.5%;
+    --popover-foreground: 210 35% 17%;
+
+    --primary: 231 89% 64%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 210 35% 96%;
+    --secondary-foreground: 210 35% 17%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 32% 95%;
+    --muted-foreground: 215 18% 42%;
 
-    --accent: 217 91% 60%;
+    --accent: 231 89% 64%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 214 28% 88%;
+    --input: 214 28% 88%;
+    --ring: 231 89% 64%;
 
     --radius: 0.75rem;
 
-    /* Dashboard specific */
-    --sidebar-bg: 210 20% 15%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-muted: 215 20% 65%;
-    --sidebar-accent: 217 91% 60%;
-    
-    /* Chart colors */
-    --chart-blue: 217 91% 60%;
+    /* Dashboard specific — cool glass-adjacent sidebar */
+    --sidebar-bg: 210 55% 98%;
+    --sidebar-foreground: 210 35% 17%;
+    --sidebar-muted: 215 18% 42%;
+    --sidebar-accent: 231 89% 64%;
+
+    /* Chart colors — primary blue aligned to accent */
+    --chart-blue: 231 89% 64%;
     --chart-green: 142 71% 45%;
     --chart-yellow: 43 96% 56%;
     --chart-orange: 25 95% 53%;
     --chart-purple: 262 83% 58%;
-    
+
     /* Metric card accents */
-    --metric-blue: 217 91% 60%;
+    --metric-blue: 231 89% 64%;
     --metric-green: 142 71% 45%;
     --metric-yellow: 43 96% 56%;
     --metric-orange: 25 95% 53%;
@@ -69,49 +86,46 @@
   }
 
   .dark {
-    --background: 0 0% 0%;
+    --background: 222 28% 6%;
     --foreground: 210 40% 98%;
 
-    --card: 0 0% 5%;
+    --card: 222 22% 11%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 5%;
+    --popover: 222 22% 11%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 231 89% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 10%;
+    --secondary: 222 18% 14%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 0 0% 10%;
+    --muted: 222 18% 14%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 217 91% 60%;
+    --accent: 231 89% 62%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 48%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 217 91% 60%;
+    --border: 222 16% 18%;
+    --input: 222 16% 18%;
+    --ring: 231 89% 62%;
 
-    /* Dashboard specific - Dark mode (slightly lighter than dashboard so sidebar is visible + border) */
-    --sidebar-bg: 0 0% 4%;
+    --sidebar-bg: 222 30% 8%;
     --sidebar-foreground: 210 40% 98%;
     --sidebar-muted: 215 20% 65%;
-    --sidebar-accent: 217 91% 60%;
-    
-    /* Chart colors - Enhanced for dark mode */
-    --chart-blue: 217 91% 65%;
+    --sidebar-accent: 231 89% 62%;
+
+    --chart-blue: 231 89% 65%;
     --chart-green: 142 71% 50%;
     --chart-yellow: 43 96% 58%;
     --chart-orange: 25 95% 58%;
     --chart-purple: 262 83% 63%;
-    
-    /* Metric card accents - Enhanced for dark mode */
-    --metric-blue: 217 91% 65%;
+
+    --metric-blue: 231 89% 65%;
     --metric-green: 142 71% 50%;
     --metric-yellow: 43 96% 58%;
     --metric-orange: 25 95% 58%;
@@ -122,7 +136,6 @@
     --metric-indigo: 239 84% 72%;
     --metric-teal: 173 80% 50%;
 
-    /* Shadows - Enhanced for dark mode */
     --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.4), 0 4px 6px -4px hsl(0 0% 0% / 0.3);
@@ -135,31 +148,262 @@
     @apply border-border;
   }
 
+  html {
+    @apply w-full max-w-[100vw];
+    background-color: hsl(var(--background));
+  }
+
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply text-foreground font-sans antialiased w-full max-w-[100vw] overflow-x-hidden bg-transparent;
     font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  /* Fixed atmosphere: gradient + soft orbs (UI_approach §3.1) — behind all routes */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      var(--bg-gradient-1) 0%,
+      var(--bg-gradient-2) 50%,
+      var(--bg-gradient-3) 100%
+    );
+    background-size: 400% 400%;
+    animation: appGradientShift 22s ease infinite;
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.32;
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 25%, var(--bg-gradient-accent), transparent 55%),
+      radial-gradient(ellipse 70% 55% at 85% 75%, var(--bg-gradient-accent-2), transparent 55%);
+    filter: blur(80px);
+    animation: appOrbDrift 28s ease-in-out infinite alternate;
+  }
+
+  .dark body::before {
+    background: linear-gradient(
+      135deg,
+      hsl(222 28% 10%) 0%,
+      hsl(222 26% 8%) 50%,
+      hsl(230 24% 9%) 100%
+    );
+    background-size: 400% 400%;
+  }
+
+  .dark body::after {
+    opacity: 0.2;
+    background:
+      radial-gradient(ellipse 80% 60% at 18% 22%, hsl(231 55% 42% / 0.45), transparent 58%),
+      radial-gradient(ellipse 70% 55% at 82% 78%, hsl(262 45% 38% / 0.4), transparent 58%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before {
+      animation: none;
+      background-size: 100% 100%;
+    }
+
+    body::after {
+      animation: none;
+    }
+  }
+
+  #root {
+    @apply relative z-0 w-full min-w-0 min-h-screen;
+  }
+}
+
+@keyframes appGradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes appOrbDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    transform: translate(2%, -1.5%) scale(1.04);
   }
 }
 
 @layer components {
+  .dash-section-title {
+    @apply text-base sm:text-lg lg:text-xl font-bold tracking-tight text-foreground;
+  }
+
+  .dash-card-title {
+    @apply text-sm sm:text-base font-semibold tracking-tight text-foreground;
+  }
+
+  .dash-card-label {
+    @apply text-xs sm:text-sm font-medium text-muted-foreground;
+  }
+
+  .dash-card-value {
+    @apply text-2xl sm:text-[2rem] font-bold tracking-tight leading-tight text-foreground;
+  }
+
+  .dash-card-subtext {
+    @apply text-sm sm:text-base text-muted-foreground;
+  }
+
+  /** Main dashboard chart block titles — align with MetricCard / section scale */
+  .dash-chart-heading {
+    @apply text-lg sm:text-xl font-bold text-foreground;
+  }
+
+  .dash-chart-subtitle {
+    @apply text-sm sm:text-base text-foreground/90 mt-0.5;
+  }
+
+  /** Quick Insights KPI sub-lines (Fuel / Shop / Coffee, EBITDA lines, etc.) — readable on white & dark */
+  .dash-insight-breakdown {
+    @apply mt-2.5 space-y-1.5 text-sm font-medium leading-snug text-foreground/90;
+  }
+
+  .dash-insight-breakdown p {
+    @apply min-w-0 break-words;
+  }
+
+  .dash-table-head {
+    @apply text-xs sm:text-sm font-semibold text-foreground;
+  }
+
+  .dash-table-cell {
+    @apply text-sm sm:text-base text-foreground;
+  }
+
+  .dash-table-cell-muted {
+    @apply text-xs sm:text-sm text-muted-foreground;
+  }
+
   .sidebar-nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-muted transition-all duration-200 hover:bg-white/10 hover:text-sidebar-foreground;
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-muted transition-all duration-200 hover:bg-sidebar-accent/10 hover:text-sidebar-foreground;
   }
   
   .sidebar-nav-item.active {
-    @apply bg-white/10 text-sidebar-foreground font-semibold;
+    @apply bg-sidebar-accent/15 text-sidebar-foreground font-semibold;
   }
-  
+
+  /** Glass shell strip — Header, optional toolbars (UI_approach §3.2) */
+  .glass-panel {
+    -webkit-backdrop-filter: blur(var(--glass-blur-heavy));
+    backdrop-filter: blur(var(--glass-blur-heavy));
+    background: hsl(var(--card) / 0.72);
+    border-color: rgb(var(--glass-border-rgb) / 0.28);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .dark .glass-panel {
+    background: hsl(var(--card) / 0.82);
+    border-color: rgb(148 163 184 / 0.2);
+  }
+
+  /**
+   * Large rounded “stage” wrapping the main column (header + body) on the gradient.
+   * Keeps sidebar outside; generous radius and soft lift like a dashboard shell card.
+   */
+  .main-stage-card {
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
+    border-radius: 1rem;
+    background: hsl(var(--card) / 0.97);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgb(var(--glass-border-rgb) / 0.22);
+    box-shadow: var(--shadow-lg), var(--glass-shadow-card-ref), 0 1px 0 rgb(255 255 255 / 0.42) inset;
+  }
+
+  @media (min-width: 640px) {
+    .main-stage-card {
+      border-radius: 1.5rem;
+    }
+  }
+
+  .dark .main-stage-card {
+    background: hsl(var(--card) / 0.94);
+    box-shadow: var(--shadow-lg), var(--glass-shadow-elevated-ref);
+    border-color: rgb(148 163 184 / 0.16);
+  }
+
+  /** Top app bar only — same surface as main stage, stacked above the body card */
+  .main-stage-header-card {
+    @apply shrink-0 overflow-hidden;
+    border-radius: 1rem;
+    background: hsl(var(--card) / 0.97);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgb(var(--glass-border-rgb) / 0.22);
+    box-shadow: var(--shadow-lg), var(--glass-shadow-card-ref), 0 1px 0 rgb(255 255 255 / 0.42) inset;
+  }
+
+  @media (min-width: 640px) {
+    .main-stage-header-card {
+      border-radius: 1.5rem;
+    }
+  }
+
+  .dark .main-stage-header-card {
+    background: hsl(var(--card) / 0.94);
+    box-shadow: var(--shadow-lg), var(--glass-shadow-elevated-ref);
+    border-color: rgb(148 163 184 / 0.16);
+  }
+
   .metric-card {
-    @apply bg-card rounded-xl p-4 lg:p-5 shadow-card border border-border/50 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5;
+    @apply rounded-xl p-4 lg:p-5 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5;
+    background: hsl(var(--card) / 0.82);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgb(var(--glass-border-rgb) / 0.25);
+    box-shadow: var(--shadow-card), var(--glass-shadow-card-ref);
   }
-  
+
+  .dark .metric-card {
+    background: hsl(var(--card) / 0.88);
+    border-color: rgb(148 163 184 / 0.18);
+  }
+
   .chart-card {
-    @apply bg-card rounded-xl p-4 lg:p-6 shadow-card border border-border/50;
+    @apply rounded-xl p-4 lg:p-6;
+    background: hsl(var(--card) / 0.82);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgb(var(--glass-border-rgb) / 0.25);
+    box-shadow: var(--shadow-card), var(--glass-shadow-card-ref);
   }
-  
+
+  .dark .chart-card {
+    background: hsl(var(--card) / 0.88);
+    border-color: rgb(148 163 184 / 0.18);
+  }
+
   .filter-button {
-    @apply flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium text-foreground transition-all hover:border-primary hover:shadow-sm;
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium text-foreground transition-all hover:border-primary hover:shadow-sm;
+    background: hsl(var(--card) / 0.78);
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    border-color: rgb(var(--glass-border-rgb) / 0.28);
+  }
+
+  .dark .filter-button {
+    background: hsl(var(--card) / 0.85);
+    border-color: rgb(148 163 184 / 0.22);
   }
 }
 
@@ -244,4 +488,67 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* Mobile chart fullscreen (RotateViewButton). PBFS: plot uses 100dvh − 52px; semantic bg from :root. */
+[data-rotate-plot][data-chart-expanded="true"] {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: calc(100dvh - 52px) !important;
+  max-height: calc(100dvh - 52px) !important;
+}
+
+[data-rotate-plot][data-chart-expanded="true"] .recharts-responsive-container,
+[data-rotate-plot][data-chart-expanded="true"] .recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+/* Metrics Comparison — Plotly bar chart hover: glass-style panel (blur + rounded + shadow) */
+.plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer {
+  filter: drop-shadow(0 10px 28px rgb(77 108 142 / 0.18));
+}
+
+.plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer .hovertext > rect {
+  rx: 12px;
+  ry: 12px;
+}
+
+.plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer foreignObject {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer foreignObject .hovertext {
+  border-radius: 12px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.dark .plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer foreignObject .hovertext {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plotly-glass-tooltip .js-plotly-plot .plotly .hoverlayer foreignObject .hovertext {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Metrics Comparison — Plotly hover uses `<b>`/`<br>` only (div/span are escaped); widen + wrap panel */
+.metrics-comparison-plot .js-plotly-plot .plotly .hoverlayer foreignObject {
+  overflow: visible;
+}
+
+.metrics-comparison-plot .js-plotly-plot .plotly .hoverlayer foreignObject .hovertext {
+  white-space: normal !important;
+  max-width: min(380px, 94vw) !important;
+  overflow: visible !important;
+  text-align: left !important;
+  line-height: 1.45 !important;
 }

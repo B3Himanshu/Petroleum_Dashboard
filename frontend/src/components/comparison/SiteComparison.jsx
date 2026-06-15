@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SitePhotoGallery } from "./SitePhotoGallery";
@@ -7,31 +7,21 @@ import { ComparisonBarChart } from "./ComparisonBarChart";
 import { ComparisonPieCharts } from "./ComparisonPieCharts";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { sitesAPI, dashboardAPI } from "@/services/api";
+import { ALL_HSRL_SITES, filterSitesForComparisonPages } from "@/constants/sites";
+import {
+  getComparisonPagesDefaultDateRange,
+  totalSiteRevenueFromNetSales,
+  fuelNetProfitFromProfit,
+  totalFuelVolumeLitres,
+} from "@/lib/petrolDashboardMetrics";
 import { Filter, X } from "lucide-react";
 
-// Same default as Business Performance Dashboard / Metrics Comparison: May–Dec 2025
-const getDefaultDates = () => ({ startDate: "2025-05-01", endDate: "2025-12-31" });
+const COMPARISON_STORAGE_KEY = "comparisonFilters_v2";
+const getDefaultDates = getComparisonPagesDefaultDateRange;
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // Derive months and years arrays from startDate/endDate for ComparisonPieCharts (getSalesDistribution)
-function getMonthsAndYearsFromRange(startDate, endDate) {
-  if (!startDate || !endDate) return { months: [], years: [] };
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return { months: [], years: [] };
-  const months = [];
-  const yearsSet = new Set();
-  const curr = new Date(start.getFullYear(), start.getMonth(), 1);
-  const last = new Date(end.getFullYear(), end.getMonth(), 1);
-  while (curr <= last) {
-    months.push(curr.getMonth() + 1);
-    yearsSet.add(curr.getFullYear());
-    curr.setMonth(curr.getMonth() + 1);
-  }
-  return { months, years: Array.from(yearsSet).sort((a, b) => a - b) };
-}
-
 // Human-readable period label: single month "November 2025", or range "May – December 2025"
 function getDateRangeLabel(startDate, endDate) {
   if (!startDate || !endDate) return "";
@@ -54,7 +44,7 @@ export const SiteComparison = () => {
 
   const loadSavedComparisonFilters = () => {
     try {
-      const saved = sessionStorage.getItem("comparisonFilters");
+      const saved = sessionStorage.getItem(COMPARISON_STORAGE_KEY);
       if (saved) {
         const filters = JSON.parse(saved);
         const defaultDates = getDefaultDates();
@@ -79,13 +69,17 @@ export const SiteComparison = () => {
 
   const savedComparisonFilters = loadSavedComparisonFilters();
 
+  // Pending — what user is editing
   const [pendingSite1, setPendingSite1] = useState(savedComparisonFilters.site1);
   const [pendingSite2, setPendingSite2] = useState(savedComparisonFilters.site2);
-  const [startDate, setStartDate] = useState(savedComparisonFilters.startDate);
-  const [endDate, setEndDate] = useState(savedComparisonFilters.endDate);
+  const [pendingStartDate, setPendingStartDate] = useState(savedComparisonFilters.startDate);
+  const [pendingEndDate, setPendingEndDate] = useState(savedComparisonFilters.endDate);
 
+  // Applied — what actually drives data fetching
   const [appliedSite1, setAppliedSite1] = useState(savedComparisonFilters.site1);
   const [appliedSite2, setAppliedSite2] = useState(savedComparisonFilters.site2);
+  const [startDate, setStartDate] = useState(savedComparisonFilters.startDate);
+  const [endDate, setEndDate] = useState(savedComparisonFilters.endDate);
   
   // Initialize applied filters on mount (optional - can start with no filters)
   // This allows users to set filters before applying
@@ -94,16 +88,37 @@ export const SiteComparison = () => {
   const [site2Data, setSite2Data] = useState(null);
   const [loadingComparison, setLoadingComparison] = useState(false);
 
-  // Fetch sites
   useEffect(() => {
     const fetchSites = async () => {
       try {
         setLoadingSites(true);
-        const sitesData = await sitesAPI.getAll();
-        setSites(sitesData);
+        let apiSites = [];
+        try {
+          apiSites = await sitesAPI.getAll();
+        } catch {
+          apiSites = [];
+        }
+        const byId = new Map(apiSites.map((s) => [Number(s.id), s]));
+        const merged = ALL_HSRL_SITES.map((s) => {
+          const a = byId.get(s.id);
+          return {
+            id: s.id,
+            name: a?.name || s.name,
+            cityDisplay: a?.cityDisplay || "",
+          };
+        });
+        setSites(filterSitesForComparisonPages(merged));
       } catch (error) {
-        console.error('Error fetching sites:', error);
-        setSites([]);
+        console.error("Error building sites list:", error);
+        setSites(
+          filterSitesForComparisonPages(
+            ALL_HSRL_SITES.map((s) => ({
+              id: s.id,
+              name: s.name,
+              cityDisplay: "",
+            }))
+          )
+        );
       } finally {
         setLoadingSites(false);
       }
@@ -111,25 +126,44 @@ export const SiteComparison = () => {
     fetchSites();
   }, []);
 
-  const handleDateRangeChange = (newStartDate, newEndDate) => {
-    setStartDate(newStartDate);
-    setEndDate(newEndDate);
+  // Drop saved selections that are no longer on the comparison list (e.g. dept 12, 19)
+  useEffect(() => {
+    if (loadingSites || sites.length === 0) return;
+    const allowed = new Set(sites.map((s) => s.id));
+    const bad = (id) => id != null && !allowed.has(id);
+    if (!bad(pendingSite1) && !bad(pendingSite2) && !bad(appliedSite1) && !bad(appliedSite2)) return;
+
+    const nextP1 = bad(pendingSite1) ? null : pendingSite1;
+    const nextP2 = bad(pendingSite2) ? null : pendingSite2;
+    const nextA1 = bad(appliedSite1) ? null : appliedSite1;
+    const nextA2 = bad(appliedSite2) ? null : appliedSite2;
+    setPendingSite1(nextP1);
+    setPendingSite2(nextP2);
+    setAppliedSite1(nextA1);
+    setAppliedSite2(nextA2);
+    setSite1Data(null);
+    setSite2Data(null);
     try {
-      const saved = sessionStorage.getItem("comparisonFilters");
+      const saved = sessionStorage.getItem(COMPARISON_STORAGE_KEY);
       const filters = saved ? JSON.parse(saved) : {};
       sessionStorage.setItem(
-        "comparisonFilters",
+        COMPARISON_STORAGE_KEY,
         JSON.stringify({
           ...filters,
-          startDate: newStartDate,
-          endDate: newEndDate,
-          site1: appliedSite1,
-          site2: appliedSite2,
+          site1: nextA1,
+          site2: nextA2,
+          startDate: pendingStartDate,
+          endDate: pendingEndDate,
         })
       );
     } catch (e) {
-      console.error("Error saving date range:", e);
+      console.error("Error updating comparison storage after site list change:", e);
     }
+  }, [loadingSites, sites, pendingSite1, pendingSite2, appliedSite1, appliedSite2, pendingStartDate, pendingEndDate]);
+
+  const handleDateRangeChange = (newStartDate, newEndDate) => {
+    setPendingStartDate(newStartDate);
+    setPendingEndDate(newEndDate);
   };
 
   // Fetch comparison data with petrol-data APIs (same as Metrics Comparison)
@@ -142,29 +176,69 @@ export const SiteComparison = () => {
 
     const fetchComparisonData = async () => {
       try {
+        setSite1Data(null);
+        setSite2Data(null);
         setLoadingComparison(true);
         const fetchForSite = async (siteId) => {
           const siteIds = [siteId];
-          const [netSalesRes, profitRes, pplRes, volRes, actualPplRes] = await Promise.all([
+          const [
+            netSalesRes,
+            profitRes,
+            pplRes,
+            volRes,
+            transitionRes,
+            actualPplRes,
+            shopProfitRes,
+            valetProfitRes,
+            labourCostRes,
+          ] = await Promise.all([
             dashboardAPI.getPetrolNetSales(startDate, endDate, siteIds),
             dashboardAPI.getPetrolProfit(startDate, endDate, siteIds),
             dashboardAPI.getPetrolAvgPPL(startDate, endDate, siteIds),
-            dashboardAPI.getPetrolFuelVolumeTransitionBreakdown(startDate, endDate, siteIds),
+            dashboardAPI.getPetrolFuelVolume(startDate, endDate, siteIds),
+            dashboardAPI.getPetrolFuelVolumeTransitionBreakdown(
+              startDate,
+              endDate,
+              siteIds
+            ),
             dashboardAPI.getPetrolActualPPL(startDate, endDate, siteIds),
+            dashboardAPI.getPetrolShopProfit(startDate, endDate, siteIds),
+            dashboardAPI.getPetrolValetProfit(startDate, endDate, siteIds),
+            dashboardAPI.getPetrolLabourCost(startDate, endDate, siteIds),
           ]);
-          // Store as positive magnitudes so Site Comparison always shows positive values
-          const netSales = Math.abs(Number(netSalesRes?.totalNetSales ?? 0));
-          const profit = Math.abs(Number(profitRes?.totalProfit ?? 0));
+          const netSales = totalSiteRevenueFromNetSales(netSalesRes);
+          const netSalesPayload = netSalesRes?.data != null ? netSalesRes.data : netSalesRes;
+          const fuelSalesForLabour = Math.abs(
+            Number(netSalesPayload?.fuelSales ?? netSalesPayload?.totalNetSales ?? 0) || 0
+          );
+          const fuelProfit = Math.abs(fuelNetProfitFromProfit(profitRes));
+          // Signed: shop/valet loss must subtract from total profit (was Math.abs which inflated KPI).
+          const shopProfit = Number(shopProfitRes?.shopProfit ?? 0) || 0;
+          const valetProfit = Number(valetProfitRes?.valetProfit ?? 0) || 0;
+          const profit = fuelProfit + shopProfit + valetProfit;
           const avgPPL = Math.abs(Number(pplRes?.avgPPL ?? 0));
-          const totalFuelVolume = Math.abs(Number(volRes?.totalVolume ?? 0));
-          const pplAfterOverheads = actualPplRes?.pplAfterOverheads != null
-            ? Math.abs(Number(actualPplRes.pplAfterOverheads))
-            : undefined;
+          const totalFuelVolume = totalFuelVolumeLitres(volRes, transitionRes);
+          const netSalesMag = Math.abs(Number(netSales) || 0);
+          const grossMarginPct = netSalesMag > 0 ? ((Number(profit) || 0) / netSalesMag) * 100 : 0;
+          const pplAfterOverheads =
+            actualPplRes?.pplAfterOverheads != null
+              ? Math.abs(Number(actualPplRes.pplAfterOverheads))
+              : undefined;
+          const labourCost = Math.abs(Number(labourCostRes?.totalLabourCost ?? 0));
+          const labourCostPercent =
+            labourCost > 0 && fuelSalesForLabour > 0 ? (labourCost / fuelSalesForLabour) * 100 : 0;
           return {
             netSales,
             profit,
+            fuelProfit,
+            shopProfit,
+            valetProfit,
             totalFuelVolume,
             avgPPL,
+            grossMarginPct,
+            labourCost,
+            labourCostPercent,
+            labourFuelSales: fuelSalesForLabour,
             ...(pplAfterOverheads != null && { pplAfterOverheads }),
           };
         };
@@ -187,22 +261,19 @@ export const SiteComparison = () => {
     fetchComparisonData();
   }, [appliedSite1, appliedSite2, startDate, endDate]);
 
-  const { months: derivedMonths, years: derivedYears } = useMemo(
-    () => getMonthsAndYearsFromRange(startDate, endDate),
-    [startDate, endDate]
-  );
-
   const handleApply = () => {
     setAppliedSite1(pendingSite1);
     setAppliedSite2(pendingSite2);
+    setStartDate(pendingStartDate);
+    setEndDate(pendingEndDate);
     try {
       sessionStorage.setItem(
-        "comparisonFilters",
+        COMPARISON_STORAGE_KEY,
         JSON.stringify({
           site1: pendingSite1,
           site2: pendingSite2,
-          startDate,
-          endDate,
+          startDate: pendingStartDate,
+          endDate: pendingEndDate,
         })
       );
     } catch (error) {
@@ -214,21 +285,26 @@ export const SiteComparison = () => {
     const defaultDates = getDefaultDates();
     setPendingSite1(null);
     setPendingSite2(null);
-    setStartDate(defaultDates.startDate);
-    setEndDate(defaultDates.endDate);
+    setPendingStartDate(defaultDates.startDate);
+    setPendingEndDate(defaultDates.endDate);
     setAppliedSite1(null);
     setAppliedSite2(null);
+    setStartDate(defaultDates.startDate);
+    setEndDate(defaultDates.endDate);
     setSite1Data(null);
     setSite2Data(null);
     try {
-      sessionStorage.removeItem("comparisonFilters");
+      sessionStorage.removeItem(COMPARISON_STORAGE_KEY);
     } catch (error) {
       console.error("Error clearing comparison filters:", error);
     }
   };
 
   const hasPendingChanges =
-    pendingSite1 !== appliedSite1 || pendingSite2 !== appliedSite2;
+    pendingSite1 !== appliedSite1 ||
+    pendingSite2 !== appliedSite2 ||
+    pendingStartDate !== startDate ||
+    pendingEndDate !== endDate;
 
   const canCompare = appliedSite1 && appliedSite2 && appliedSite1 !== appliedSite2;
 
@@ -236,14 +312,16 @@ export const SiteComparison = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Filter Section */}
       <div className="chart-card animate-slide-up">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+        {/* Header — title left, buttons right (desktop only) */}
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-primary" />
             <span className="text-sm sm:text-base font-semibold text-foreground">
               Comparison Filters
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Desktop: buttons in header */}
+          <div className="hidden sm:flex items-center gap-2">
             {(pendingSite1 || pendingSite2 || appliedSite1 || appliedSite2) && (
               <Button
                 variant="ghost"
@@ -252,7 +330,7 @@ export const SiteComparison = () => {
                 className="text-xs text-muted-foreground hover:text-foreground"
               >
                 <X className="w-4 h-4 mr-1" />
-                <span className="hidden xs:inline">Clear</span>
+                Clear
               </Button>
             )}
             <Button
@@ -268,16 +346,15 @@ export const SiteComparison = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {/* Date range (same as Business Performance Dashboard / Metrics Comparison) */}
+          {/* Date range */}
           <div className="chart-card p-4">
             <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">
               Date range
             </p>
             <DateRangePicker
-              startDate={startDate}
-              endDate={endDate}
+              startDate={pendingStartDate}
+              endDate={pendingEndDate}
               onDateChange={handleDateRangeChange}
-              minDate="2025-05-01"
             />
           </div>
 
@@ -335,12 +412,36 @@ export const SiteComparison = () => {
         </div>
 
         {pendingSite1 === pendingSite2 && pendingSite1 && (
-          <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <div className="mt-3 p-2 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
             <p className="text-xs sm:text-sm text-yellow-600 dark:text-yellow-400">
               Please select two different sites for comparison.
             </p>
           </div>
         )}
+
+        {/* Mobile: buttons at the bottom after all filters */}
+        <div className="flex sm:hidden items-center gap-2 mt-4 pt-4 border-t border-border">
+          {(pendingSite1 || pendingSite2 || appliedSite1 || appliedSite2) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClear}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Clear
+            </Button>
+          )}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleApply}
+            disabled={!pendingSite1 || !pendingSite2 || pendingSite1 === pendingSite2 || !hasPendingChanges}
+            className="text-xs flex-1"
+          >
+            Apply Filters
+          </Button>
+        </div>
       </div>
 
       {/* Selected period (month-wise): single month or range */}
@@ -382,8 +483,8 @@ export const SiteComparison = () => {
             site2Id={appliedSite2}
             site1Name={sites.find(s => s.id === appliedSite1)?.name || "Site 1"}
             site2Name={sites.find(s => s.id === appliedSite2)?.name || "Site 2"}
-            months={derivedMonths}
-            years={derivedYears}
+            startDate={startDate}
+            endDate={endDate}
             loading={loadingComparison}
             comparisonSite1Data={site1Data}
             comparisonSite2Data={site2Data}

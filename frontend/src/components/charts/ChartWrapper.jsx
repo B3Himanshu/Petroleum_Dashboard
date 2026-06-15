@@ -24,7 +24,7 @@ export const ChartWrapper = ({ title, legend, children, timeSelector }) => {
           )}
         </div>
       </div>
-      <div className="h-[300px]">{children}</div>
+      <div className="h-[280px] sm:h-[300px] min-h-0">{children}</div>
     </Card>
   );
 };

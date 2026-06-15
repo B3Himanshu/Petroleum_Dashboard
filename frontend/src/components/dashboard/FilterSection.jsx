@@ -15,7 +15,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { sitesAPI } from "@/services/api";
-import { ALL_29_SITES } from "@/constants/sites";
+import { ALL_HSRL_SITES } from "@/constants/sites";
 import { useState, useEffect, useCallback, memo } from "react";
 
 // Constants for dropdown options - extracted for reusability and performance
@@ -182,18 +182,18 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
   const [sites, setSites] = useState([]);
   const [loadingSites, setLoadingSites] = useState(true);
 
-  // Fetch sites from API; merge with fallback so we always have all 29 sites
+  // Fetch sites from API; merge with fallback so we always have the full HSRL dept list
   useEffect(() => {
     const fetchSites = async () => {
       try {
         setLoadingSites(true);
         const apiSites = await sitesAPI.getAll();
-        if (Array.isArray(apiSites) && apiSites.length >= ALL_29_SITES.length) {
+        if (Array.isArray(apiSites) && apiSites.length >= ALL_HSRL_SITES.length) {
           setSites(apiSites);
         } else {
-          // Merge: use API data when available, else fallback so dropdown always has all 29
+          // Merge: use API data when available, else fallback so dropdown always has every dept
           const byId = new Map((apiSites || []).map((s) => [Number(s.id), s]));
-          const merged = ALL_29_SITES.map((fallback) => {
+          const merged = ALL_HSRL_SITES.map((fallback) => {
             const fromApi = byId.get(fallback.id);
             return fromApi
               ? { id: fromApi.id, name: fromApi.name, postCode: fromApi.postCode, city: fromApi.city, cityDisplay: fromApi.cityDisplay }
@@ -203,7 +203,7 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
         }
       } catch (error) {
         console.error('Error fetching sites:', error);
-        setSites(ALL_29_SITES);
+        setSites(ALL_HSRL_SITES);
       } finally {
         setLoadingSites(false);
       }
@@ -250,11 +250,11 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
       <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-primary" />
-          <span className="text-sm sm:text-sm lg:text-base font-semibold text-foreground">
+            <span className="dash-card-title">
             Filters
           </span>
         </div>
-        <button className="text-xs sm:text-xs lg:text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <button className="text-sm text-muted-foreground hover:text-foreground transition-colors font-medium">
           Reset
         </button>
       </div>
@@ -262,7 +262,7 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 lg:gap-4">
         {/* Site - First */}
         <div className="flex-1 w-full sm:min-w-[140px] lg:min-w-[150px]">
-          <label className="text-xs font-medium text-primary mb-1.5 sm:mb-2 block">
+          <label className="dash-card-label mb-1.5 sm:mb-2 block">
             Site
           </label>
           <Select value={localSelectedSite ?? "all"} onValueChange={handleLocalSiteChange}>
@@ -286,7 +286,7 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
 
         {/* Year - Second */}
         <div className="flex-1 w-full sm:min-w-[140px] lg:min-w-[150px]">
-          <label className="text-xs font-medium text-primary mb-1.5 sm:mb-2 block">
+          <label className="dash-card-label mb-1.5 sm:mb-2 block">
             Year
           </label>
           <MultiSelect
@@ -300,7 +300,7 @@ const FilterSectionComponent = ({ onApplyFilters, selectedSite, onSiteChange, fi
 
         {/* Month - Third */}
         <div className="flex-1 w-full sm:min-w-[140px] lg:min-w-[150px]">
-          <label className="text-xs font-medium text-primary mb-1.5 sm:mb-2 block">
+          <label className="dash-card-label mb-1.5 sm:mb-2 block">
             Month
           </label>
           <MultiSelect

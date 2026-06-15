@@ -34,7 +34,7 @@ export const ShopProductCategoriesChart = ({ startDate, endDate }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Shop categories not in Sage (PRL); no API — show empty until API available
+        // Shop categories not in Sage (HSRL); no API — show empty until API available
         setChartData([]);
       } catch (err) {
         console.error('❌ [ShopProductCategoriesChart] Error:', err);
@@ -115,7 +115,7 @@ export const ShopProductCategoriesChart = ({ startDate, endDate }) => {
           Shop Product Categories
         </CardTitle>
         <CardDescription>
-          Top 5 categories by sales volume. Data from API when available (Sage/PRL).
+          Top 5 categories by sales volume. Data from API when available (Sage/HSRL).
         </CardDescription>
       </CardHeader>
       <CardContent>

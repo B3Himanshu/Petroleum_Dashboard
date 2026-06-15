@@ -29,7 +29,7 @@ export const NetSalesKPICard = ({ totalNetSales, loading, error, onClick }) => {
             <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wide leading-tight">
+            <p className="text-xs sm:text-sm text-muted-foreground font-semibold uppercase tracking-wide leading-tight">
               Net Sales
             </p>
           </div>
@@ -45,19 +45,19 @@ export const NetSalesKPICard = ({ totalNetSales, loading, error, onClick }) => {
           </div>
         ) : error ? (
           <div className="space-y-2">
-            <h3 className="text-2xl sm:text-3xl font-bold text-destructive tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-destructive tracking-tight leading-tight">
               Error
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               {error}
             </p>
           </div>
         ) : (
           <>
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight leading-tight">
+            <h3 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-foreground tracking-tight leading-tight">
               {formatCurrency(totalNetSales || 0)}
             </h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-1.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-1.5">
               Fuel Sales + Other Income
             </p>
           </>

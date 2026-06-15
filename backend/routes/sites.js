@@ -4,38 +4,28 @@ import { mapSiteToFrontend, getCityFromPostcode } from '../utils/cityMapping.js'
 
 const router = express.Router();
 
-// Fallback for all 29 sites when DB sites table is missing or has different schema (e.g. Sage-only DB).
-// Ensures map and tables get site_code, site_name, post_code so city/location can be derived.
+// HSRL 20 departments (0-19) fallback
 const SITE_FALLBACK = [
-  { site_code: 6, site_name: 'Manor Service Station', post_code: 'SO18 1AR' },
-  { site_code: 7, site_name: 'Hen And Chicken SS', post_code: 'GU34 4JH' },
-  { site_code: 9, site_name: 'Salterton Road SS', post_code: 'EX8 2NE' },
-  { site_code: 10, site_name: 'Lanner Moor Garage', post_code: 'TR16 6HT' },
-  { site_code: 11, site_name: 'Luton Road SS', post_code: 'LU5 4LW' },
-  { site_code: 14, site_name: 'Kings Lane SS', post_code: 'PE19 1JZ' },
-  { site_code: 17, site_name: 'Delph SS', post_code: 'PE7 1RO' },
-  { site_code: 18, site_name: 'Saxon Autopoint SS', post_code: 'PE7 1NJ' },
-  { site_code: 19, site_name: 'Jubits Lane SS', post_code: 'WA9 4RX' },
-  { site_code: 20, site_name: 'Worsley Brow', post_code: 'WA9 3EZ' },
-  { site_code: 23, site_name: 'Auto Pitstop', post_code: 'PE13 4AA' },
-  { site_code: 24, site_name: 'Crown SS', post_code: 'HD6 1QH' },
-  { site_code: 25, site_name: 'Marsland SS', post_code: 'OL8 1SY' },
-  { site_code: 29, site_name: 'Gemini SS', post_code: 'WA5 7TY' },
-  { site_code: 30, site_name: 'Park View', post_code: 'DE45 1AW' },
-  { site_code: 31, site_name: 'Filleybrook SS', post_code: 'ST15 0PT' },
-  { site_code: 33, site_name: 'Swan Connect', post_code: 'B70 0YA' },
-  { site_code: 34, site_name: 'Portland', post_code: 'DT5 1BW' },
-  { site_code: 35, site_name: 'Lower Lane', post_code: 'GL16 8QQ' },
-  { site_code: 36, site_name: 'Vale SS', post_code: 'WR11 7QP' },
-  { site_code: 37, site_name: 'Kensington SS', post_code: 'B29 7NY' },
-  { site_code: 38, site_name: 'County Oak SS', post_code: 'RH10 9TA' },
-  { site_code: 39, site_name: 'Kings Of Sedgley', post_code: 'DY3 1RA' },
-  { site_code: 40, site_name: 'Gnosall SS', post_code: 'ST20 0EZ' },
-  { site_code: 41, site_name: 'Minsterley SS', post_code: 'SY5 0BE' },
-  { site_code: 42, site_name: 'Nelson SS', post_code: 'BB9 7AJ' },
-  { site_code: 43, site_name: 'Yeovil SS', post_code: 'BA21 4EH' },
-  { site_code: 44, site_name: 'Canklow SS', post_code: 'S60 2XG' },
-  { site_code: 45, site_name: 'Stanton Self Service', post_code: 'IP31 2BZ' },
+  { site_code: 0, site_name: 'HEAD OFFICE', post_code: '' },
+  { site_code: 1, site_name: 'ANSON SS', post_code: '' },
+  { site_code: 2, site_name: 'BELGRAVE SS', post_code: '' },
+  { site_code: 3, site_name: 'GREENFORD PARK SS', post_code: '' },
+  { site_code: 4, site_name: 'BADDESLEY SS', post_code: '' },
+  { site_code: 5, site_name: 'SWANLEY SS', post_code: '' },
+  { site_code: 6, site_name: 'ASTWICK SS', post_code: '' },
+  { site_code: 7, site_name: 'VINEYARD SS', post_code: '' },
+  { site_code: 8, site_name: 'WEXHAM SS', post_code: '' },
+  { site_code: 9, site_name: 'LYE SS', post_code: '' },
+  { site_code: 10, site_name: 'GIRTON SS', post_code: '' },
+  { site_code: 11, site_name: 'PATCHAM SS', post_code: '' },
+  { site_code: 12, site_name: 'SUBWAY', post_code: '' },
+  { site_code: 13, site_name: 'PARK ROYAL SS', post_code: '' },
+  { site_code: 14, site_name: 'Gravesend SS', post_code: '' },
+  { site_code: 15, site_name: 'Amersham SS', post_code: '' },
+  { site_code: 16, site_name: 'Oakham SS', post_code: '' },
+  { site_code: 17, site_name: 'Spalding SS', post_code: '' },
+  { site_code: 18, site_name: 'ERITH SS', post_code: '' },
+  { site_code: 19, site_name: 'Erith Subway', post_code: '' },
 ];
 
 /**
@@ -47,15 +37,10 @@ router.get('/', async (req, res) => {
     console.log('🏢 [Backend] GET /api/sites');
     console.log('🏢 [Backend] Query params:', req.query);
     
-    // Get sites from database - minimal schema (site_code, site_name, post_code) for compatibility with Sage DB
-    // Filter out sites with site_code 0 or 1 (header/company rows)
     const sitesQuery = `
-      SELECT site_code, site_name, post_code
-      FROM sites
-      WHERE site_code > 1
-        AND (post_code IS NOT NULL AND post_code != '')
-        AND (site_name IS NOT NULL AND site_name != '')
-      ORDER BY site_code;
+      SELECT dept_number::int AS site_code, dept_name AS site_name, '' AS post_code
+      FROM HSRL_departments
+      ORDER BY dept_number::int;
     `;
     console.log('🏢 [Backend] Executing sites query');
     const result = await query(sitesQuery);
@@ -96,15 +81,13 @@ router.get('/city/:cityId', async (req, res) => {
   try {
     if (cityId === 'all') {
       const result = await query(`
-        SELECT site_code, site_name, post_code FROM sites WHERE site_code > 1 ORDER BY site_code;
+        SELECT dept_number::int AS site_code, dept_name AS site_name, '' AS post_code FROM HSRL_departments ORDER BY dept_number::int;
       `);
       const mappedSites = result.rows.map(mapSiteToFrontend);
       return res.json({ success: true, count: mappedSites.length, data: mappedSites });
     }
     const result = await query(`
-      SELECT site_code, site_name, post_code FROM sites
-      WHERE site_code > 1 AND post_code IS NOT NULL AND post_code != '' AND site_name IS NOT NULL AND site_name != ''
-      ORDER BY site_code;
+      SELECT dept_number::int AS site_code, dept_name AS site_name, '' AS post_code FROM HSRL_departments ORDER BY dept_number::int;
     `);
     const mappedSites = result.rows.map(mapSiteToFrontend).filter(site => site.city === cityId);
     return res.json({ success: true, count: mappedSites.length, data: mappedSites });
@@ -122,7 +105,7 @@ router.get('/city/:cityId', async (req, res) => {
 router.get('/cities/list', async (req, res) => {
   try {
     const result = await query(`
-      SELECT DISTINCT post_code FROM sites WHERE site_code > 1 AND post_code IS NOT NULL AND post_code != '' ORDER BY post_code;
+      SELECT DISTINCT '' AS post_code FROM HSRL_departments;
     `);
     const cityMap = new Map();
     result.rows.forEach(row => {
@@ -162,7 +145,7 @@ router.get('/:id', async (req, res) => {
 
   try {
     const result = await query(
-      'SELECT site_code, site_name, post_code FROM sites WHERE site_code = $1;',
+      'SELECT dept_number::int AS site_code, dept_name AS site_name, \'\' AS post_code FROM HSRL_departments WHERE dept_number::int = $1;',
       [siteCode]
     );
     if (result.rows.length > 0) {

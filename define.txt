@@ -1,0 +1,1031 @@
+# HSRL Flutter Dashboard: Graph Definitions (Mobile-First)
+
+This document defines the 4 graphs shown in the dashboard so they can be implemented in Flutter with a clean, professional, and responsive UI.
+
+---
+
+## 1) Monthly Performance Trends (Bar Graph)
+
+### Purpose
+Show monthly trend of key business metrics in one view:
+- Revenue (site)
+- Gross Profit
+- Volume (ML)
+
+### Recommended Chart Type
+- Grouped vertical bar chart with 3 bars per month.
+- Use dual axis only when required:
+  - Left Y-axis: currency (Revenue, Gross Profit)
+  - Right Y-axis: volume (ML)
+
+### Data Definition
+Per month object:
+- `monthLabel`: `"Jan 2026"`
+- `revenueSite`: number (currency)
+- `grossProfit`: number (currency)
+- `volumeML`: number (million liters)
+
+### Tooltip / Details
+On tap (mobile) or hover (desktop/web), show:
+- Month
+- Revenue (formatted currency)
+- Gross Profit (formatted currency)
+- Volume (formatted ML)
+- Optional: Avg PPL and PPL after OH (if needed for context)
+
+### Mobile-First Responsive Rules
+- Card min height: `280-320`
+- Internal chart area min height: `200`
+- X-axis labels:
+  - Show abbreviated month (`Jan 26`)
+  - Rotate by `-30deg` only if label collision happens
+- Bar width:
+  - Small phone: `10-12`
+  - Large phone: `12-16`
+- Legend placement:
+  - Mobile: bottom, wrapped in 2 lines if needed
+  - Tablet/Desktop: single line
+
+### Desktop Behavior
+- Card height `340-420`
+- Full month label (`Jan 2026`)
+- Wider bar groups, more spacing
+- Tooltip can include extra fields and trend deltas
+
+### Visual Style
+- Revenue: blue
+- Gross Profit: orange
+- Volume: green
+- Background: dark card, subtle grid lines
+- Keep axis text high contrast
+
+### Professional UX Notes
+- Never allow label overlap without handling
+- Keep consistent number formatting:
+  - Currency: `GBP compact` (`£5.69M`)
+  - Volume: `ML` (`4.60 ML`)
+
+---
+
+## 2) Fuel Grade Mix (%) Donut Chart (Volume/Profit Toggle)
+
+### Purpose
+Show distribution by fuel grade and allow toggle:
+- Volume mode
+- Profit mode
+
+### Recommended Chart Type
+- Donut chart + legend list with value and percentage.
+- Center label shows total for current mode.
+
+### Data Definition
+Per grade:
+- `gradeName`: e.g., `Petrol Unleaded`
+- `volume`: number (KL or ML)
+- `profit`: number (currency)
+- `color`: fixed brand-safe color per grade
+
+### Mode Toggle Behavior
+- Toggle options:
+  - `Volume`
+  - `Profit`
+- Switching mode updates:
+  - Slice values
+  - Center total label
+  - Legend values
+  - Percentage calculation
+- Keep colors fixed between modes to avoid confusion.
+
+### Center Metrics
+- Volume mode: `Total (volume)` + total in `ML/KL`
+- Profit mode: `Total (profit)` + currency total
+
+### Mobile-First Responsive Rules
+- Card min height: `340-420` (mobile needs space for legend)
+- Donut size:
+  - Small phone: `140-170`
+  - Large phone: `170-210`
+- Legend:
+  - Mobile: stacked rows, each row has label + value + %
+  - Truncate long label with ellipsis
+- Touch targets:
+  - Toggle buttons at least `40` height
+  - Legend rows at least `36` height
+
+### Desktop Behavior
+- Donut and legend can be side-by-side
+- Legend can show full labels and exact decimals
+- Card can be shorter due to available width
+
+### Visual Style
+- Clean ring thickness (not too thin)
+- Slight slice spacing for readability
+- Highlight selected slice (tap/hover state)
+
+### Professional UX Notes
+- Show helper text in Profit mode:
+  - `Profit by grade not in Sage: allocated by sales share.`
+- If one segment is tiny:
+  - Keep it in legend even if label is hidden on ring
+
+---
+
+## 3) PPL vs Actual PPL Vending Out OH (Comparison Scatter/Point Chart)
+
+### Purpose
+Compare expected and actual profitability indicators per month:
+- Avg PPL
+- PPL after Vending Out Overheads
+
+### Recommended Chart Type
+- Point chart (scatter with month on X-axis).
+- Two point series:
+  - Avg PPL (blue)
+  - PPL After OH (green)
+- Optional thin line connection across months for trend continuity.
+
+### Data Definition
+Per month object:
+- `monthLabel`
+- `avgPPL`: number (pence per liter)
+- `pplAfterOH`: number (pence per liter)
+
+### Tooltip / Insights
+On interaction show:
+- Month
+- Avg PPL (e.g., `15.44p`)
+- PPL After OH (e.g., `5.01p`)
+- Optional delta: `Avg - AfterOH`
+
+### Mobile-First Responsive Rules
+- Card min height: `250-300`
+- Point radius:
+  - Mobile: `4-5`
+  - Desktop: `5-6`
+- X-axis label simplify:
+  - Use short month format on mobile
+- Y-axis:
+  - Keep `p` suffix visible (`0.00p`, `4.00p`)
+- Tooltip:
+  - Tap-based, anchored near point
+  - Avoid clipping by auto-shifting within chart bounds
+
+### Desktop Behavior
+- More month labels visible
+- Add crosshair and smoother hover interactions
+- Include optional trendline and confidence band if needed later
+
+### Visual Style
+- Keep chart minimal and readable:
+  - Light dashed grid
+  - Strong contrasting points
+  - Legend at bottom center
+
+### Professional UX Notes
+- For single-month data, avoid awkward large whitespace:
+  - Apply fixed side padding and center points neatly
+
+---
+
+## 4) Shared Graph Container/Pattern (for all cards)
+
+This is the 4th definition: a reusable graph card specification so every graph is consistent, professional, and mobile responsive.
+
+### Purpose
+Ensure all chart cards have:
+- Same spacing rules
+- Same typography hierarchy
+- Same loading/error/empty states
+- Same responsive behavior
+
+### Required Card Structure
+1. Header row:
+   - Title
+   - Optional subtitle/help text
+   - Optional filter indicator (`Filter: date range above`)
+2. Body:
+   - Chart area (fixed min height)
+3. Footer area:
+   - Legend or summary rows
+
+### Mobile-First Layout Rules
+- Outer card padding:
+  - Mobile: `12-14`
+  - Tablet/Desktop: `16-20`
+- Section gap:
+  - Mobile: `8-10`
+  - Desktop: `12-14`
+- Border radius: `12-16`
+- Keep one chart per row on phone
+
+### Desktop Layout Rules
+- Use responsive grid:
+  - Width < 900: 1 column
+  - 900-1300: 2 columns
+  - >1300: 2 columns with larger cards
+- Maintain equal card heights per row where possible
+
+### States (must be consistent)
+- `Loading`: skeleton placeholders
+- `No Data`: friendly message + retry
+- `Error`: concise technical-safe message + retry
+
+### Performance Rules for Flutter
+- Debounce filter changes before API calls (`250-400ms`)
+- Memoize transformed chart data
+- Avoid rebuilding whole dashboard on one chart update
+- Use pagination/windowing for very long time ranges
+
+### Accessibility + Professional Standards
+- Color contrast minimum WCAG-friendly against dark background
+- Do not rely only on color; include labels/legend markers
+- Minimum text sizes:
+  - Title: `16+`
+  - Axis/legend: `11-12+`
+- Support screen rotation and tablet split view gracefully
+
+---
+
+## Flutter Implementation Suggestions
+
+Recommended Flutter chart libraries:
+- `fl_chart` (good for custom mobile-first interaction)
+- `syncfusion_flutter_charts` (enterprise features, strong responsiveness)
+
+Suggested component architecture:
+- `DashboardGraphCard` (shared wrapper)
+- `MonthlyPerformanceBarChart`
+- `FuelGradeMixDonutChart`
+- `PplComparisonChart`
+
+Shared utilities:
+- Number formatter (`currency`, `ML/KL`, `p`)
+- Adaptive sizing helper by screen width
+- Common tooltip widget
+
+---
+
+## Responsive Breakpoints (Practical Defaults)
+
+- `xs` phone: `<360`
+- `sm` phone: `360-599`
+- `md` tablet: `600-1023`
+- `lg` desktop: `1024-1439`
+- `xl` wide desktop: `>=1440`
+
+Behavior priority:
+1. Mobile readability and tap usability
+2. Tablet balance (information density)
+3. Desktop enhancement (extra details, not clutter)
+
+---
+
+## Final UI Quality Checklist
+
+- Titles clear and consistent
+- Axis and legends readable on 320px width
+- Tooltip never clipped
+- No overlapping labels
+- Totals and percentages always match data source
+- Color mapping consistent across all screens
+- Loading/empty/error states polished
+
+If this definition is followed, your Flutter dashboard will be mobile-first, professional, clean, and still strong on desktop.
+
+---
+
+## Flutter Code Logic (All 4 Graphs)
+
+Below is practical Flutter logic you can use directly. This is written for `fl_chart`, but the same architecture works with other chart packages.
+
+### 0) Core Models (shared by all graphs)
+
+```dart
+enum FuelMixMode { volume, profit }
+
+class MonthlyPerformancePoint {
+  final DateTime month;
+  final double revenueSite;   // currency value
+  final double grossProfit;   // currency value
+  final double volumeMl;      // volume in ML
+
+  MonthlyPerformancePoint({
+    required this.month,
+    required this.revenueSite,
+    required this.grossProfit,
+    required this.volumeMl,
+  });
+}
+
+class FuelGradePoint {
+  final String gradeName;
+  final double volumeKl;
+  final double profit;
+  final Color color;
+
+  FuelGradePoint({
+    required this.gradeName,
+    required this.volumeKl,
+    required this.profit,
+    required this.color,
+  });
+}
+
+class PplPoint {
+  final DateTime month;
+  final double avgPpl;
+  final double pplAfterOh;
+
+  PplPoint({
+    required this.month,
+    required this.avgPpl,
+    required this.pplAfterOh,
+  });
+}
+```
+
+### 1) Graph #1 Monthly Performance Trends (Grouped Bars)
+
+Logic:
+- 1 x-group per month
+- 3 rods in each group (revenue, gross, volume)
+- Tooltip maps rod index to metric label
+
+```dart
+BarChartData buildMonthlyPerformanceChartData({
+  required List<MonthlyPerformancePoint> points,
+  required bool isMobile,
+}) {
+  final groups = <BarChartGroupData>[];
+
+  for (var i = 0; i < points.length; i++) {
+    final p = points[i];
+    groups.add(
+      BarChartGroupData(
+        x: i,
+        barsSpace: isMobile ? 4 : 6,
+        barRods: [
+          BarChartRodData(toY: p.revenueSite, width: isMobile ? 10 : 14, color: const Color(0xFF3B82F6)),
+          BarChartRodData(toY: p.grossProfit, width: isMobile ? 10 : 14, color: const Color(0xFFF59E0B)),
+          BarChartRodData(toY: p.volumeMl, width: isMobile ? 10 : 14, color: const Color(0xFF22C55E)),
+        ],
+      ),
+    );
+  }
+
+  return BarChartData(
+    barGroups: groups,
+    alignment: BarChartAlignment.spaceAround,
+    gridData: const FlGridData(show: true),
+    borderData: FlBorderData(show: false),
+    titlesData: FlTitlesData(
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          getTitlesWidget: (value, meta) {
+            final i = value.toInt();
+            if (i < 0 || i >= points.length) return const SizedBox.shrink();
+            final m = points[i].month;
+            final text = isMobile ? "${_m3(m.month)} ${m.year % 100}" : "${_m3(m.month)} ${m.year}";
+            return SideTitleWidget(
+              axisSide: meta.axisSide,
+              angle: isMobile ? -0.5 : 0, // rotate if needed
+              child: Text(text, style: const TextStyle(fontSize: 10)),
+            );
+          },
+        ),
+      ),
+      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true)),
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true)),
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    ),
+    barTouchData: BarTouchData(
+      enabled: true,
+      touchTooltipData: BarTouchTooltipData(
+        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+          final p = points[group.x.toInt()];
+          final monthText = "${_m3(p.month.month)} ${p.month.year}";
+          final label = rodIndex == 0
+              ? "Revenue"
+              : rodIndex == 1
+                  ? "Gross Profit"
+                  : "Volume";
+          final value = rodIndex == 2 ? "${p.volumeMl.toStringAsFixed(2)} ML" : _fmtCurrencyCompact(rod.toY);
+          return BarTooltipItem(
+            "$monthText\n$label: $value",
+            const TextStyle(color: Colors.white, fontSize: 12),
+          );
+        },
+      ),
+    ),
+  );
+}
+```
+
+### 2) Graph #2 Fuel Grade Mix Donut + Switch Tab (Volume/Profit)
+
+This is the exact switch-tab logic you requested.
+
+```dart
+class FuelGradeMixCard extends StatefulWidget {
+  final List<FuelGradePoint> grades;
+  final bool isMobile;
+
+  const FuelGradeMixCard({
+    super.key,
+    required this.grades,
+    required this.isMobile,
+  });
+
+  @override
+  State<FuelGradeMixCard> createState() => _FuelGradeMixCardState();
+}
+
+class _FuelGradeMixCardState extends State<FuelGradeMixCard> {
+  FuelMixMode _mode = FuelMixMode.volume; // default tab as in screenshot
+  int? _touchedIndex;
+
+  List<PieChartSectionData> _sections() {
+    final total = _totalValue();
+    return List.generate(widget.grades.length, (i) {
+      final g = widget.grades[i];
+      final v = _mode == FuelMixMode.volume ? g.volumeKl : g.profit;
+      final pct = total == 0 ? 0 : (v / total) * 100;
+      final isTouched = _touchedIndex == i;
+
+      return PieChartSectionData(
+        value: v,
+        color: g.color,
+        radius: isTouched ? (widget.isMobile ? 72 : 86) : (widget.isMobile ? 66 : 80),
+        title: pct >= 7 ? "${pct.toStringAsFixed(1)}%" : "",
+        titleStyle: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+      );
+    });
+  }
+
+  double _totalValue() {
+    return widget.grades.fold(
+      0,
+      (sum, g) => sum + (_mode == FuelMixMode.volume ? g.volumeKl : g.profit),
+    );
+  }
+
+  String _centerTitle() => _mode == FuelMixMode.volume ? "Total (volume)" : "Total (profit)";
+
+  String _centerValue() {
+    final t = _totalValue();
+    return _mode == FuelMixMode.volume ? _fmtVolumeKlToMl(t) : _fmtCurrencyCompact(t);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Switch tab between Volume and Profit
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF111827),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _modeTab(label: "Volume", mode: FuelMixMode.volume),
+              _modeTab(label: "Profit", mode: FuelMixMode.profit),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_mode == FuelMixMode.profit)
+          const Text(
+            "Profit by grade not in Sage: allocated by sales share.",
+            style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+          ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: widget.isMobile ? 190 : 240,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PieChart(
+                PieChartData(
+                  sectionsSpace: 3,
+                  centerSpaceRadius: widget.isMobile ? 48 : 60,
+                  sections: _sections(),
+                  pieTouchData: PieTouchData(
+                    touchCallback: (event, response) {
+                      setState(() {
+                        _touchedIndex = response?.touchedSection?.touchedSectionIndex;
+                      });
+                    },
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_centerTitle(), style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+                  const SizedBox(height: 4),
+                  Text(
+                    _centerValue(),
+                    style: TextStyle(
+                      fontSize: widget.isMobile ? 24 : 28,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        ...widget.grades.map((g) {
+          final v = _mode == FuelMixMode.volume ? g.volumeKl : g.profit;
+          final t = _totalValue();
+          final pct = t == 0 ? 0 : (v / t) * 100;
+          final valueText = _mode == FuelMixMode.volume ? _fmtVolumeKlToMl(v) : _fmtCurrencyCompact(v);
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: g.color, shape: BoxShape.circle)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    g.gradeName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFD1D5DB)),
+                  ),
+                ),
+                Text("$valueText   ${pct.toStringAsFixed(1)}%", style: const TextStyle(color: Colors.white)),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _modeTab({required String label, required FuelMixMode mode}) {
+    final selected = _mode == mode;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => setState(() {
+        _mode = mode;
+        _touchedIndex = null;
+      }),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF3B82F6) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(label, style: TextStyle(color: selected ? Colors.white : const Color(0xFF9CA3AF))),
+      ),
+    );
+  }
+}
+```
+
+### 3) Graph #3 PPL vs Actual PPL (Point/Line)
+
+Logic:
+- Two spots per month x-index
+- Optional line drawn across months
+- Tooltip returns both values for selected month
+
+```dart
+LineChartData buildPplChartData({
+  required List<PplPoint> points,
+  required bool isMobile,
+}) {
+  final avgSpots = <FlSpot>[];
+  final afterOhSpots = <FlSpot>[];
+
+  for (var i = 0; i < points.length; i++) {
+    avgSpots.add(FlSpot(i.toDouble(), points[i].avgPpl));
+    afterOhSpots.add(FlSpot(i.toDouble(), points[i].pplAfterOh));
+  }
+
+  return LineChartData(
+    minX: 0,
+    maxX: points.isEmpty ? 0 : (points.length - 1).toDouble(),
+    gridData: const FlGridData(show: true, drawVerticalLine: false),
+    borderData: FlBorderData(show: false),
+    titlesData: FlTitlesData(
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          getTitlesWidget: (value, meta) {
+            final i = value.toInt();
+            if (i < 0 || i >= points.length) return const SizedBox.shrink();
+            final m = points[i].month;
+            final text = isMobile ? "${_m3(m.month)} ${m.year % 100}" : "${_m3(m.month)} ${m.year}";
+            return SideTitleWidget(axisSide: meta.axisSide, child: Text(text, style: const TextStyle(fontSize: 10)));
+          },
+        ),
+      ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          getTitlesWidget: (value, meta) => Text("${value.toStringAsFixed(2)}p", style: const TextStyle(fontSize: 10)),
+        ),
+      ),
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    ),
+    lineTouchData: LineTouchData(
+      enabled: true,
+      touchTooltipData: LineTouchTooltipData(
+        getTooltipItems: (spots) {
+          return spots.map((s) {
+            final p = points[s.x.toInt()];
+            return LineTooltipItem(
+              "${_m3(p.month.month)} ${p.month.year}\nAvg PPL: ${p.avgPpl.toStringAsFixed(2)}p\nPPL After OH: ${p.pplAfterOh.toStringAsFixed(2)}p",
+              const TextStyle(color: Colors.white, fontSize: 12),
+            );
+          }).toList();
+        },
+      ),
+    ),
+    lineBarsData: [
+      LineChartBarData(
+        spots: avgSpots,
+        isCurved: false,
+        color: const Color(0xFF3B82F6),
+        dotData: FlDotData(show: true),
+        barWidth: 1.4,
+      ),
+      LineChartBarData(
+        spots: afterOhSpots,
+        isCurved: false,
+        color: const Color(0xFF10B981),
+        dotData: FlDotData(show: true),
+        barWidth: 1.4,
+      ),
+    ],
+  );
+}
+```
+
+### 4) Graph #4 Shared Reusable Graph Card (Container Logic)
+
+Use one reusable wrapper for all graph cards to keep them professional and consistent.
+
+```dart
+class DashboardGraphCard extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String? filterHint;
+  final Widget child;
+  final double mobileMinHeight;
+  final double desktopMinHeight;
+  final bool loading;
+  final String? error;
+  final bool isEmpty;
+  final VoidCallback? onRetry;
+
+  const DashboardGraphCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.filterHint,
+    this.mobileMinHeight = 280,
+    this.desktopMinHeight = 340,
+    this.loading = false,
+    this.error,
+    this.isEmpty = false,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final isMobile = w < 600;
+    final minHeight = isMobile ? mobileMinHeight : desktopMinHeight;
+    final padding = EdgeInsets.all(isMobile ? 12 : 16);
+
+    Widget body;
+    if (loading) {
+      body = _SkeletonGraph(height: minHeight * 0.65);
+    } else if (error != null) {
+      body = _MessageState(message: error!, actionText: "Retry", onPressed: onRetry);
+    } else if (isEmpty) {
+      body = _MessageState(message: "No data available for selected filters", actionText: "Retry", onPressed: onRetry);
+    } else {
+      body = SizedBox(height: minHeight * 0.72, child: child);
+    }
+
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0F19),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1F2937)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(subtitle!, style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+          ],
+          if (filterHint != null) ...[
+            const SizedBox(height: 2),
+            Text(filterHint!, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+          ],
+          const SizedBox(height: 12),
+          body,
+        ],
+      ),
+    );
+  }
+}
+```
+
+### 5) Responsive Helper + Formatters
+
+```dart
+bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < 600;
+
+String _m3(int month) {
+  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return names[month - 1];
+}
+
+String _fmtCurrencyCompact(double v) {
+  if (v.abs() >= 1000000) return "£${(v / 1000000).toStringAsFixed(2)}M";
+  if (v.abs() >= 1000) return "£${(v / 1000).toStringAsFixed(2)}K";
+  return "£${v.toStringAsFixed(2)}";
+}
+
+String _fmtVolumeKlToMl(double kl) {
+  final ml = kl / 1000;
+  if (ml >= 1) return "${ml.toStringAsFixed(2)} ML";
+  return "${kl.toStringAsFixed(2)} KL";
+}
+```
+
+### 6) Integration Pattern in Dashboard Screen
+
+```dart
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = isMobile(context);
+
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        DashboardGraphCard(
+          title: "Monthly Performance Trends (Bar Graph)",
+          filterHint: "Filter: date range above",
+          mobileMinHeight: 300,
+          desktopMinHeight: 380,
+          child: BarChart(buildMonthlyPerformanceChartData(points: monthlyPoints, isMobile: mobile)),
+        ),
+        const SizedBox(height: 12),
+        DashboardGraphCard(
+          title: "Fuel Grade Mix (%)",
+          subtitle: "Volume and profit by category. Toggle switch between Volume and Profit.",
+          mobileMinHeight: 380,
+          desktopMinHeight: 420,
+          child: FuelGradeMixCard(grades: fuelGrades, isMobile: mobile),
+        ),
+        const SizedBox(height: 12),
+        DashboardGraphCard(
+          title: "PPL vs Actual PPL vending out OH",
+          filterHint: "Filter: date range above",
+          mobileMinHeight: 260,
+          desktopMinHeight: 320,
+          child: LineChart(buildPplChartData(points: pplPoints, isMobile: mobile)),
+        ),
+      ],
+    );
+  }
+}
+```
+
+### 7) Volume/Profit Switch Tab Requirement (Final)
+
+To match the image exactly, keep these rules fixed:
+- Default selected tab: `Volume`
+- Tab control is visible above donut
+- On tab click:
+  - update donut section values
+  - update center total label/value
+  - update legend value and percentages
+  - show helper note only in `Profit` mode
+- Keep grade colors same in both modes
+- Use animated transition (`200-300ms`) for smoother professional feel
+
+---
+
+## Nominal Codes + Calculation Logic (Must Match Backend)
+
+Use the same nominal code groups as backend so Flutter numbers match exactly.
+
+### A) Nominal Code Groups
+
+```dart
+// Fuel sales shown in charts
+const fuelSalesCodes = ['4000', '4001', '4002', '4003', '4004'];
+
+// Fuel purchases for fuel profit
+const fuelPurchaseCodes = ['5000', '5001', '5002', '5003', '5004'];
+
+// Extra fuel-related sales (bunkering etc.) if your API includes them in revenue cards
+const fuelSalesAddCodes = ['4100', '4101', '4102'];
+
+// Labour
+const labourCodes = ['7000', '7001', '7002', '7003', '7005'];
+
+// Overheads used in dashboard
+const overheadCodes = ['7150', '7151', '7200', '7800', '7906'];
+
+// Fuel profit 14-code logic used by backend
+const fuelProfit14Codes = [
+  '4000', '4001', '4002', '4003', '4004', '4005',
+  '5000', '5001', '5002', '5003', '5004', '5005', '5050',
+];
+```
+
+### B) Grade Mapping for Donut (Volume/Profit)
+
+```dart
+const fuelGradeMap = <String, String>{
+  '4000': 'Petrol Unleaded',
+  '4001': 'Diesel Unleaded',
+  '4002': 'Petrol Super Unleaded',
+  '4003': 'Diesel Super Unleaded',
+  '4004': 'Adblue',
+};
+
+const fuelPurchaseToSalesCode = <String, String>{
+  '5000': '4000',
+  '5001': '4001',
+  '5002': '4002',
+  '5003': '4003',
+  '5004': '4004',
+};
+```
+
+### C) Core Formula Rules
+
+Important: Sage data can be sign-flipped in some datasets.  
+For chart display, normalize magnitude with `abs()` when needed to avoid negative visual confusion.
+
+```dart
+double safeAbs(num? v) => (v ?? 0).toDouble().abs();
+double safe(num? v) => (v ?? 0).toDouble();
+```
+
+#### 1) Monthly Performance Bar Graph
+
+For each month:
+
+```dart
+monthlyRevenueSite = sum(amount where nominal in revenueCodes);
+monthlyGrossProfit = safeAbs(sum(amount where nominal in fuelSalesCodes))
+                   - safeAbs(sum(amount where nominal in fuelPurchaseCodes));
+monthlyVolumeMl = totalFuelLitres / 1000000.0; // if source litres
+```
+
+If API already returns final values, use API values directly.  
+Only fallback to local compute when raw rows are returned.
+
+#### 2) Fuel Grade Mix Donut (Volume/Profit)
+
+##### Volume mode
+- For each grade sales code (`4000..4004`), use volume by grade.
+- If `volume` column not available, parse `details` fallback from backend and consume API result.
+
+```dart
+gradeVolume[code] = safeAbs(sum(volumeLitres where nominal==code));
+volumeTotal = gradeVolume.values.fold(0, (a, b) => a + b);
+volumePct(code) = volumeTotal == 0 ? 0 : (gradeVolume[code]! / volumeTotal) * 100;
+```
+
+##### Profit mode
+- Profit by grade = abs(sales grade amount) - abs(purchase mapped amount)
+- Mapping: `4000->5000`, `4001->5001`, ... `4004->5004`
+
+```dart
+final s = safeAbs(sum(amount where nominal==salesCode));   // 400x
+final c = safeAbs(sum(amount where nominal==purchaseCode)); // 500x
+gradeProfit[salesCode] = s - c;
+
+profitTotal = gradeProfit.values.fold(0, (a, b) => a + b);
+profitPct(code) = profitTotal == 0 ? 0 : (gradeProfit[code]! / profitTotal) * 100;
+```
+
+Switch tab logic (required):
+- `Volume` tab -> donut uses `gradeVolume`
+- `Profit` tab -> donut uses `gradeProfit`
+- Center total + legend values + percentages must update immediately on toggle
+
+#### 3) PPL vs Actual PPL Vending Out OH
+
+For each month:
+
+```dart
+fuelSales = safeAbs(sum(amount where nominal in fuelSalesCodes));
+fuelPurchases = safeAbs(sum(amount where nominal in fuelPurchaseCodes));
+fuelProfit = fuelSales - fuelPurchases;
+
+avgPpl = fuelSales == 0 ? 0 : (fuelProfit / fuelSales) * 100; // pence per liter style metric in your dashboard
+
+overheads = safeAbs(sum(amount where nominal in overheadCodes));
+pplAfterOh = fuelSales == 0 ? 0 : ((fuelProfit - overheads) / fuelSales) * 100;
+```
+
+Tooltip values:
+- Avg PPL = `avgPpl.toStringAsFixed(2) + "p"`
+- PPL After OH = `pplAfterOh.toStringAsFixed(2) + "p"`
+
+#### 4) Shared Graph Card KPI/Metadata
+
+These are common values used by titles/footers/mini KPIs:
+
+```dart
+totalFuelVolumeMl = sum(monthlyVolumeMl);
+totalFuelSales = sum(monthlyFuelSales);
+totalFuelPurchases = sum(monthlyFuelPurchases);
+totalFuelProfit = totalFuelSales - totalFuelPurchases;
+labourCost = safeAbs(sum(amount where nominal in labourCodes));
+labourCostPct = totalFuelSales == 0 ? 0 : (labourCost / totalFuelSales) * 100;
+```
+
+### D) Flutter Aggregation Example (from raw rows)
+
+```dart
+class NominalRow {
+  final String nominalCode;
+  final DateTime date;
+  final double amount;
+  final double? volume; // litres if available
+  final String? details; // optional fallback source
+
+  NominalRow({
+    required this.nominalCode,
+    required this.date,
+    required this.amount,
+    this.volume,
+    this.details,
+  });
+}
+
+String ymKey(DateTime d) => "${d.year}-${d.month.toString().padLeft(2, '0')}";
+
+Map<String, List<NominalRow>> groupByMonth(List<NominalRow> rows) {
+  final out = <String, List<NominalRow>>{};
+  for (final r in rows) {
+    final k = ymKey(r.date);
+    out.putIfAbsent(k, () => []).add(r);
+  }
+  return out;
+}
+
+double sumAmountByCodes(List<NominalRow> rows, Set<String> codes, {bool absValue = true}) {
+  double s = 0;
+  for (final r in rows) {
+    if (!codes.contains(r.nominalCode)) continue;
+    s += absValue ? r.amount.abs() : r.amount;
+  }
+  return s;
+}
+```
+
+### E) API Contract Recommendation (Best for Flutter)
+
+Prefer backend-calculated response for consistency:
+
+```json
+{
+  "monthlyPerformance": [
+    { "month": "2026-01", "revenueSite": 5690000, "grossProfit": 748300, "volumeMl": 4.60 }
+  ],
+  "fuelGradeMix": {
+    "volume": [
+      { "gradeCode": "4000", "gradeName": "Petrol Unleaded", "value": 2170000, "percentage": 47.2 }
+    ],
+    "profit": [
+      { "gradeCode": "4000", "gradeName": "Petrol Unleaded", "value": 320340, "percentage": 45.0 }
+    ]
+  },
+  "pplSeries": [
+    { "month": "2026-01", "avgPpl": 15.44, "pplAfterOh": 5.01 }
+  ]
+}
+```
+
+This keeps Flutter rendering simple and ensures nominal code calculation is centralized in backend.

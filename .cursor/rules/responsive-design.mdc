@@ -1,0 +1,37 @@
+---
+description: 
+alwaysApply: true
+---
+
+# Responsive design (HSRL)
+
+Every UI or layout change **must** remain usable on **phones and tablets**, not only desktop. Treat **mobile-first** as the default; enhance for larger breakpoints.
+
+## Desktop vs mobile (HSRL convention)
+
+- **Desktop (`sm` and up, ≥640px)**: Do **not** change layout, spacing, typography, or chart dimensions **unless** the task explicitly asks for desktop changes. Preserve current desktop appearance and behavior.
+- **Mobile / tablet (below `sm`, and tablet checks ~768px)**: This is where responsiveness work belongs — stacking, scroll, touch targets, chart readability, modals/sidebars, etc. Implement fixes in the **mobile-first base** (unprefixed / `max-sm:` where appropriate) and keep existing **`sm:`** (and `md:`/`lg:`) rules matching what shipped for desktop.
+
+## Must do
+
+- **Viewport**: Keep `<meta name="viewport" content="width=device-width, initial-scale=1.0" />` in HTML entry points (already in `frontend/index.html`). Do not remove it.
+- **Layout**: Prefer **Flexbox** (one axis) and **CSS Grid** (two axes). Use **Tailwind** responsive prefixes (`sm:`, `md:`, `lg:`, `xl:`) so narrow screens stack or scroll safely; add wider layouts with `min-width` breakpoints, not desktop-only first.
+- **Sizing**: Avoid fixed pixel widths for whole layouts (e.g. `width: 1200px`). Prefer **`max-width`**, **`min(100%, …)`**, **`%`**, **`rem`**, and **`clamp()`** where appropriate. Charts and cards should not overflow the viewport horizontally.
+- **Touch**: Interactive targets should be large enough to tap; avoid cramming controls only in desktop toolbars.
+- **Images**: Use responsive patterns where relevant (`srcset` / `sizes`, or `object-fit` + fluid width). Gallery and hero images must not break narrow layouts.
+- **Typography**: Prefer fluid or breakpoint-scaled text (`text-sm` → `sm:text-base`, or `clamp()` in CSS) so copy stays readable without horizontal scroll.
+
+## Breakpoints (reference)
+
+Align with Tailwind defaults: **sm 640px**, **md 768px**, **lg 1024px**, **xl 1280px**, **2xl 1536px**. For “standard” bands: mobile ~320–767px, tablet ~768–1023px, desktop ~1024px+, large ~1440px+.
+
+## Avoid
+
+- **Regressing desktop** while fixing mobile: do not rewrite or remove working `sm:`+ styles for a mobile-only fix; add narrow-screen behavior alongside them.
+- Desktop-only layouts with no narrow-screen plan.
+- Relying on `max-width` media queries alone for “mobile fixes” when **mobile-first** `min-width` stacking is clearer in Tailwind.
+- Duplicate styles at every breakpoint: set **base (mobile) styles first**, then override only what changes at `sm`/`md`/`lg`.
+
+## When changing this repo
+
+After editing pages, components, or dashboard CSS: **confirm** the affected screen works at **~375px width** (and tablet ~768px) — spacing, scroll, modals, sidebars, and charts. If something is desktop-only, add a responsive variant in the same change.

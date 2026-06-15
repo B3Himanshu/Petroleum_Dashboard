@@ -1,0 +1,349 @@
+================================================================
+HSRL DASHBOARD — ADMIN LOGIN & USER CREATION DETAILS
+================================================================
+
+
+----------------------------------------------------------------
+1. DATABASE TABLE STRUCTURE
+----------------------------------------------------------------
+
+TABLE: hsrl_dashboard_users
+  id                 SERIAL PRIMARY KEY
+  email              VARCHAR UNIQUE NOT NULL
+  password_hash      VARCHAR NOT NULL          (bcrypt, cost 12)
+  role               VARCHAR(20) DEFAULT 'user' → 'admin' or 'user'
+  first_name         VARCHAR(100)
+  last_name          VARCHAR(100)
+  email_verified_at  TIMESTAMP                 (NULL = not verified)
+  created_at         TIMESTAMP DEFAULT NOW()
+  updated_at         TIMESTAMP DEFAULT NOW()
+
+TABLE: hsrl_auth_tokens
+  id           SERIAL PRIMARY KEY
+  user_id      INTEGER → FK to hsrl_dashboard_users.id
+  token_hash   VARCHAR NOT NULL   (SHA-256 of raw token)
+  type         VARCHAR            → 'email_verify' or 'password_reset'
+  expires_at   TIMESTAMP
+  used_at      TIMESTAMP          (NULL = not yet used)
+  created_at   TIMESTAMP DEFAULT NOW()
+
+
+----------------------------------------------------------------
+2. ADMIN SETUP (First Time / One Time)
+----------------------------------------------------------------
+
+Run this script to create/sync the admin from your .env file:
+
+  cd backend
+  node scripts/sync-admin-from-env.js
+
+Required in backend/.env:
+  ADMIN_EMAIL=admin@yourdomain.com
+  ADMIN_PASSWORD=yourAdminPassword123
+
+This script:
+  - Checks if email exists in hsrl_dashboard_users with role='admin'
+  - If yes → updates password_hash
+  - If no  → inserts new row with role='admin', email_verified_at=NOW()
+
+
+----------------------------------------------------------------
+3. ADMIN LOGIN
+----------------------------------------------------------------
+
+Endpoint:   POST /api/admin/login
+Public:     Yes (no auth required)
+
+Request Body:
+  {
+    "email": "admin@yourdomain.com",      // can also use "username" field
+    "password": "yourAdminPassword123"
+  }
+
+What happens:
+  SELECT * FROM hsrl_dashboard_users
+  WHERE email = $1 AND role = 'admin'
+  → bcrypt.compare(password, password_hash)
+  → Returns JWT token (valid 7 days)
+
+Success Response:
+  {
+    "success": true,
+    "token": "eyJhbGciOiJIUzI1NiIs...",
+    "admin": { "id": 1, "username": "admin@yourdomain.com" }
+  }
+
+JWT Payload contains:
+  { sub: id, role: 'admin', email, firstName, lastName }
+
+Error Responses:
+  400 — email or password missing
+  401 — wrong email/password
+  500 — server error
+
+
+----------------------------------------------------------------
+4. ADMIN CREATES A USER
+----------------------------------------------------------------
+
+Endpoint:   POST /api/admin/users
+Auth:       Required (Admin JWT in Authorization: Bearer <token>)
+
+Request Body:
+  {
+    "email":            "user@example.com",      REQUIRED
+    "password":         "min8chars",             REQUIRED (min 8 chars)
+    "firstName":        "John",                  optional
+    "lastName":         "Smith",                 optional
+    "verificationMode": "direct"                 optional (see below)
+  }
+
+verificationMode options:
+  "direct"    → User created + email_verified_at = NOW()
+                User can log in immediately
+                Welcome email sent to user
+
+  "user_link" → User created + email_verified_at = NULL (default)
+                Verification email sent with 24hr link
+                User must click link before they can log in
+
+What gets stored in DB:
+
+  INSERT INTO hsrl_dashboard_users
+    (email, password_hash, role, first_name, last_name, email_verified_at)
+  VALUES
+    ($email, bcrypt($password), 'user', $firstName, $lastName,
+     NOW()   ← if direct
+     NULL    ← if user_link)
+
+  If user_link mode, also stores token:
+  INSERT INTO hsrl_auth_tokens (user_id, token_hash, type, expires_at)
+  VALUES ($userId, sha256($rawToken), 'email_verify', NOW() + 24 hours)
+
+Success Response:
+  {
+    "success": true,
+    "data": { "id": 5, "email": "user@example.com", "emailVerified": true/false },
+    "initialPassword": "min8chars",
+    "emailSent": true/false,
+    "message": "User created..."
+  }
+
+Error Responses:
+  400 — invalid email or password too short
+  409 — email already registered
+  500 — server error
+
+
+----------------------------------------------------------------
+5. OTHER ADMIN USER MANAGEMENT ENDPOINTS
+----------------------------------------------------------------
+
+All require Admin JWT token.
+
+GET    /api/admin/users
+  → Returns all users with role='user'
+  → Fields: id, email, first_name, last_name, email_verified_at, created_at
+
+DELETE /api/admin/users/:id
+  → Deletes user with role='user' only (cannot delete admins)
+
+PATCH  /api/admin/users/:id/password
+  → Body: { "password": "newpassword" }
+  → Updates password for a regular user
+
+POST   /api/admin/users/:id/verify
+  → Manually marks email_verified_at = NOW() for a user
+  → Sends "account active" email to user
+
+POST   /api/admin/users/:id/resend-verification
+  → Deletes old unused verify token, sends new verification email
+  → Only works if user is not yet verified
+
+GET    /api/admin/profile
+  → Returns admin's own profile (id, email, firstName, lastName)
+
+PATCH  /api/admin/profile
+  → Body: { "firstName": "...", "lastName": "..." }
+  → Updates admin's own name
+
+
+----------------------------------------------------------------
+6. REQUIRED backend/.env VARIABLES FOR AUTH
+----------------------------------------------------------------
+
+JWT_SECRET=your_very_long_random_secret_string_here
+JWT_EXPIRES_IN=7d
+
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=yourAdminPassword123
+
+# Email (for verification emails — optional but recommended)
+SMTP_HOST=smtp.yourmailprovider.com
+SMTP_PORT=587
+SMTP_USER=your@email.com
+SMTP_PASS=yoursmtppassword
+SMTP_FROM=noreply@yourdomain.com
+
+# Frontend URL (used in email links)
+FRONTEND_URL=https://yourdomain.com
+
+================================================================
+7. UI DESIGN — LOGIN PAGES
+================================================================
+
+Both /login and /admin/login share the same visual shell
+(AuthSignInShell + AuthBrandHeader) and only differ in the
+form fields and title text.
+
+----------------------------------------------------------------
+7.1  SHARED SHELL  (AuthSignInShell + AuthBrandHeader)
+     File: frontend/src/components/auth/AuthSignInChrome.jsx
+----------------------------------------------------------------
+
+LAYOUT
+  • Full-screen centered column (min-h-screen, flex, items-center,
+    justify-center) with bg-background (white in light mode).
+  • Max content width: max-w-md (448 px).
+  • Soft radial blue glow behind the header:
+    radial-gradient(ellipse 88%×56% at top-center, blue-500/10)
+
+BRAND HEADER  (above the card, same on both pages)
+  ┌─────────────────────────────────────┐
+  │   [Bar-chart icon — 80×80 px]       │
+  │   Rounded-2xl, gradient             │
+  │   from-blue-500 via-blue-600        │
+  │   to-blue-700, shadow-blue-600/25   │
+  │                                     │
+  │   HSRL                              │
+  │   (clamp 1.85–3.25 rem, extrabold)  │
+  │                                     │
+  │   PETROLEUM BUSINESS FUEL SOLUTIONS │
+  │   (0.7 rem, uppercase, tracked)     │
+  │                                     │
+  │   ─────── (thin gradient divider)   │
+  │                                     │
+  │   Business Performance Dashboard    │
+  │   (1.05 rem, semibold)              │
+  │                                     │
+  │   [FUEL] [SHOP] [VALET] [ROI]       │
+  │   (pill badges, border-primary/55,  │
+  │    0.65 rem, rounded-full)          │
+  └─────────────────────────────────────┘
+
+  Gap between header and card: gap-8 (desktop: gap-10).
+
+----------------------------------------------------------------
+7.2  USER LOGIN PAGE   /login
+     File: frontend/src/pages/Login.jsx
+----------------------------------------------------------------
+
+CARD
+  • rounded-2xl, border border-border, bg-card
+  • shadow-lg shadow-black/6
+  • Padding: px-6 sm:px-8, pt-6 pb-8
+
+HEADER (CardHeader)
+  Title:       "Sign in to your account"  (xl–2xl, bold)
+  Subtitle:    "Use the credentials provided by your administrator."
+
+ERROR BANNER (shown only on failed login)
+  • Alert with variant="destructive"
+  • Title: "Could not sign in"
+  • Body: dynamic error message from API response
+
+FORM FIELDS
+  ┌─────────────────────────────────────┐
+  │ Email address                        │
+  │ [____________________________]      │  type=email, autocomplete=email
+  │                                     │
+  │ Password              Forgot password?│  (link → /forgot-password)
+  │ [____________________________]      │  type=password
+  │                                     │
+  │ [     Sign in / Signing in…     ]   │  h-11, w-full, bg-blue-600
+  │                                     │
+  │          ─────── OR ───────         │  muted divider
+  │                                     │
+  │ [       Admin login (outline)    ]  │  → /admin/login
+  └─────────────────────────────────────┘
+
+BEHAVIOUR
+  • Email trimmed + lowercased before submit.
+  • On 401: hits GET /api/auth/status to decide the error hint:
+      – dashboardUserCount = 0 → tells user to go create a user first
+      – otherwise → generic "wrong credentials / forgot-password" hint
+  • On 403: shows the server's message verbatim (e.g. email not verified).
+  • On success: toast "Signed in", navigates to redirect target (default /dashboard).
+  • Button disabled + label changes to "Signing in…" while loading.
+
+NAVIGATION
+  • "Forgot password?" link → /forgot-password
+  • "Admin login" outline button → /admin/login
+
+----------------------------------------------------------------
+7.3  ADMIN LOGIN PAGE   /admin/login
+     File: frontend/src/pages/AdminLogin.jsx
+----------------------------------------------------------------
+
+CARD  (identical shell classes to User Login card)
+
+HEADER (CardHeader)
+  Title:       "Admin sign in"  (xl–2xl, bold)
+  Subtitle:    "Manage dashboard users (create / delete)."
+
+FORM FIELDS  (no error banner — errors shown via toast only)
+  ┌─────────────────────────────────────┐
+  │ Admin username                       │
+  │ [____________________________]      │  type=text, autocomplete=username
+  │                                     │
+  │ Password                             │
+  │ [____________________________]      │  type=password
+  │                                     │
+  │ [     Sign in / Signing in…     ]   │  h-11, w-full, bg-blue-600
+  │                                     │
+  │          ─────── OR ───────         │  muted divider
+  │                                     │
+  │ [ Dashboard user sign in (outline)] │  → /login
+  └─────────────────────────────────────┘
+
+BEHAVIOUR
+  • Username trimmed before submit.
+  • On success:
+      – Stores JWT in localStorage key: ADMIN_TOKEN_KEY
+      – Fetches admin profile → stores in localStorage key: hsrl_admin_profile
+      – toast "Signed in as admin"
+      – Navigates to redirect target (default /admin)
+  • On error: toast with server error message (no inline error banner).
+  • Button disabled + label changes to "Signing in…" while loading.
+
+NAVIGATION
+  • "Dashboard user sign in" outline button → /login
+
+----------------------------------------------------------------
+7.4  SHARED DESIGN TOKENS
+----------------------------------------------------------------
+
+Colors (Tailwind / shadcn/ui CSS variables)
+  bg-background       → page background (white / dark depending on theme)
+  bg-card             → card surface
+  border-border       → card border
+  text-foreground     → primary text
+  text-muted-foreground → subtitle / hint text
+  text-primary        → link / outline button text
+  bg-blue-600         → primary CTA button (hover: bg-blue-700)
+
+Typography
+  Card title:   font-bold, tracking-tight, xl (mobile) / 2xl (sm+)
+  Field labels: default Label size
+  Helper text:  text-sm
+  Divider text: 0.65 rem, uppercase, tracking-[0.2em], muted
+
+Component library
+  Card / CardHeader / CardContent / CardTitle / CardDescription → shadcn/ui
+  Button, Input, Label, Alert, AlertTitle, AlertDescription      → shadcn/ui
+  Toasts → sonner (toast.success / toast.error)
+  Routing → react-router-dom (Link, useNavigate, useLocation)
+
+================================================================
+END OF FILE
+================================================================

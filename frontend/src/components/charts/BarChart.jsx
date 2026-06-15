@@ -8,13 +8,14 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { dashCartesianGridProps } from "@/lib/dashboardChartTypography";
 
 // JSX version (no TypeScript types)
 export const BarChart = ({ data, series }) => {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ReBarChart data={data} barGap={4} barCategoryGap="20%">
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <CartesianGrid {...dashCartesianGridProps} vertical={false} />
         <XAxis dataKey="name" tickLine={false} axisLine={false} />
         <YAxis tickLine={false} axisLine={false} />
         <Tooltip />

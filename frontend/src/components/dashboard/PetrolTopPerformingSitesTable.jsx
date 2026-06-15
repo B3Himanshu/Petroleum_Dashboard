@@ -16,7 +16,7 @@ const PetrolTopPerformingSitesTableComponent = ({ startDate, endDate, hideTitle,
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!startDate || !endDate) {
+    if (!startDate || !endDate || (Array.isArray(siteIds) && siteIds.length === 1)) {
       setTableData([]);
       return;
     }
@@ -91,42 +91,59 @@ const PetrolTopPerformingSitesTableComponent = ({ startDate, endDate, hideTitle,
     );
   }
 
-  if (!tableData || tableData.length === 0) {
+  if (Array.isArray(siteIds) && siteIds.length === 1) {
     return (
       <div className="chart-card animate-slide-up">
-        {!hideTitle && (
-          <h3 className="text-lg font-semibold text-foreground mb-4">
-            Top Performing Sites
-          </h3>
-        )}
-        <div className="flex flex-col items-center justify-center h-64 gap-2 text-center px-4">
-          <div className="text-muted-foreground">No rankings for this date range.</div>
-          <div className="text-sm text-muted-foreground/80">Try a different range or ensure transactions exist for sites 6–45.</div>
+        {!hideTitle && <h3 className="dash-section-title mb-4">Top Performing Sites</h3>}
+        <div className="flex flex-col items-center justify-center h-48 gap-2 text-center px-4">
+          <div className="text-3xl font-bold text-foreground">N/A</div>
+          <div className="text-base text-muted-foreground">Select 2 or more sites to compare rankings.</div>
         </div>
       </div>
     );
   }
 
+  if (!tableData || tableData.length === 0) {
+    return (
+      <div className="chart-card animate-slide-up">
+        {!hideTitle && (
+          <h3 className="dash-section-title mb-4">
+            Top Performing Sites
+          </h3>
+        )}
+        <div className="flex flex-col items-center justify-center h-64 gap-2 text-center px-4">
+          <div className="text-muted-foreground">No rankings for this date range.</div>
+          <div className="text-base text-muted-foreground/80">Try a different range or ensure transactions exist for sites 6–45.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedCount = Array.isArray(siteIds) ? siteIds.length : 0;
+  const displayData = selectedCount >= 2
+    ? tableData.slice(0, Math.ceil(selectedCount / 2))
+    : tableData;
+
   return (
     <div className="chart-card animate-slide-up">
       {!hideTitle && (
-        <h3 className="text-lg font-semibold text-foreground mb-4">
+        <h3 className="dash-section-title mb-4">
           Top Performing Sites
         </h3>
       )}
-      <div className="w-full min-w-0 overflow-visible">
-        <Table>
+      <div className="w-full sm:overflow-visible overflow-x-auto">
+        <Table className="sm:w-full w-max min-w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20 text-center">Rank</TableHead>
-              <TableHead className="min-w-[180px]">Site Name</TableHead>
-              <TableHead className="text-right min-w-[130px]">Net Sales</TableHead>
-              <TableHead className="text-right min-w-[125px]" title="Revenue − Cost (always shown as positive).">Profit</TableHead>
-              <TableHead className="text-right min-w-[110px]" title="Fuel profit as % of fuel sales.">Fuel margin %</TableHead>
+              <TableHead className="w-12 text-center sm:w-16 dash-table-head">Rank</TableHead>
+              <TableHead className="min-w-[130px] sm:min-w-[180px] sticky left-0 z-20 sm:static sm:bg-transparent dash-table-head" style={{ backgroundColor: 'hsl(var(--card))' }}>Site Name</TableHead>
+              <TableHead className="text-right min-w-[100px] sm:min-w-[130px] dash-table-head">Net Sales</TableHead>
+              <TableHead className="text-right min-w-[95px] sm:min-w-[125px] dash-table-head" title="Revenue − Cost (always shown as positive).">Profit</TableHead>
+              <TableHead className="text-right min-w-[90px] sm:min-w-[110px] dash-table-head" title="Fuel profit as % of fuel sales.">Fuel margin %</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tableData.map((row, index) => (
+            {displayData.map((row, index) => (
               <TableRow
                 key={index}
                 className={cn(
@@ -137,17 +154,17 @@ const PetrolTopPerformingSitesTableComponent = ({ startDate, endDate, hideTitle,
                 <TableCell className="text-center">
                   {getRankBadge(index + 1)}
                 </TableCell>
-                <TableCell className="font-medium text-foreground">
+                <TableCell className="font-medium dash-table-cell sticky left-0 z-10 sm:static" style={{ backgroundColor: 'hsl(var(--card))' }}>
                   {row.name}
                 </TableCell>
-                <TableCell className="text-right font-semibold text-foreground">
+                <TableCell className="text-right font-semibold dash-table-cell">
                   {formatCurrency(row.net_sales || 0)}
                 </TableCell>
-                <TableCell className="text-right font-semibold text-green-600 dark:text-green-400">
+                <TableCell className="text-right font-semibold text-green-600 dark:text-green-400 text-sm sm:text-base">
                   {formatCurrency(row.fuel_profit ?? 0)}
                 </TableCell>
-                <TableCell className="text-right font-semibold text-foreground">
-                  {row.ppl != null ? `${Math.max(0, row.ppl).toFixed(1)}%` : 'N/A'}
+                <TableCell className="text-right font-semibold dash-table-cell">
+                  {row.ppl != null && Number.isFinite(row.ppl) ? `${row.ppl.toFixed(1)}%` : 'N/A'}
                 </TableCell>
               </TableRow>
             ))}

@@ -1,0 +1,206 @@
+================================================================
+HSRL DASHBOARD — DEPLOY GUIDE (deploy.ps1)
+================================================================
+
+REQUIREMENTS
+  - Windows machine with PowerShell
+  - PuTTY tools installed: plink.exe + pscp.exe (must be in PATH)
+    Download: https://www.putty.org/
+  - Linux server with Docker + Docker Compose installed
+  - backend\.env file filled in (see variables below)
+
+
+----------------------------------------------------------------
+1. DEPLOY VARIABLES (add to backend\.env)
+----------------------------------------------------------------
+
+DEPLOY_HOST=your.server.ip.address
+DEPLOY_PORT=9000                    (port your app runs on, default 9000)
+DEPLOY_SSH_PORT=22                  (SSH port, default 22)
+DEPLOY_USERNAME=yourServerUser
+DEPLOY_PASSWORD=yourServerPassword
+
+
+----------------------------------------------------------------
+2. HOW TO RUN
+----------------------------------------------------------------
+
+Open PowerShell in the project root (where deploy.ps1 is) and run:
+
+  # Full deploy — upload everything + docker build + start
+  .\deploy.ps1
+
+  # Upload files only — skip docker build/start
+  .\deploy.ps1 -SkipDocker
+
+  # Push new .env only + restart container (no rebuild, fastest)
+  .\deploy.ps1 -EnvOnly
+
+
+----------------------------------------------------------------
+3. WHAT THE SCRIPT DOES (step by step)
+----------------------------------------------------------------
+
+STEP 1 — Read backend\.env
+  Loads all DEPLOY_* variables from backend\.env
+
+STEP 2 — Connect to server
+  SSH into: $DEPLOY_USER@$DEPLOY_HOST on port $DEPLOY_SSH_PORT
+  Creates remote folder: /home/$DEPLOY_USER/hsrl_ui/
+
+STEP 3 — Upload files via SCP (pscp)
+  Uploads to /home/$DEPLOY_USER/hsrl_ui/ :
+
+  Root files:
+    Dockerfile
+    nginx.conf
+    supervisord.conf
+    docker-compose.yml
+
+  Backend (node_modules, exports, test, .env are EXCLUDED first):
+    backend/server.js
+    backend/routes/
+    backend/config/
+    backend/middleware/
+    backend/services/
+    backend/lib/
+    backend/data/
+    backend/migrations/
+    backend/scripts/
+    backend/package.json
+    backend/package-lock.json
+    ...
+  Then .env is uploaded separately:
+    backend/.env
+
+  Frontend (node_modules and dist are EXCLUDED):
+    frontend/src/
+    frontend/public/
+    frontend/index.html
+    frontend/package.json
+    frontend/vite.config.mjs
+    ...
+
+STEP 4 — Docker build & start (unless -SkipDocker)
+  docker compose down
+  docker compose build --no-cache
+  docker compose up -d
+  docker compose ps          (shows running containers)
+  docker compose logs --tail 20   (shows last 20 log lines)
+
+STEP 5 — Done
+  Prints: http://your.server.ip:9000
+
+
+----------------------------------------------------------------
+4. ENVONLY MODE (quickest update)
+----------------------------------------------------------------
+
+Use this when you only changed backend/.env values
+(e.g. changed a password, updated SMTP settings):
+
+  .\deploy.ps1 -EnvOnly
+
+  What it does:
+    1. Uploads backend/.env to server
+    2. Runs: docker compose up -d --force-recreate
+    3. Container restarts with new env vars (no rebuild)
+    Total time: ~10 seconds
+
+
+----------------------------------------------------------------
+5. REMOTE DIRECTORY STRUCTURE ON SERVER
+----------------------------------------------------------------
+
+/home/$DEPLOY_USER/hsrl_ui/
+  ├── Dockerfile
+  ├── docker-compose.yml
+  ├── nginx.conf
+  ├── supervisord.conf
+  ├── backend/
+  │   ├── server.js
+  │   ├── .env                ← your secrets live here
+  │   ├── routes/
+  │   ├── config/
+  │   ├── middleware/
+  │   ├── services/
+  │   ├── lib/
+  │   ├── data/
+  │   ├── migrations/
+  │   ├── scripts/
+  │   └── package.json
+  └── frontend/
+      ├── src/
+      ├── public/
+      ├── index.html
+      ├── package.json
+      └── vite.config.mjs
+
+
+----------------------------------------------------------------
+6. DOCKER SETUP (what runs on the server)
+----------------------------------------------------------------
+
+The docker-compose.yml builds a single container that:
+  - Runs npm install + vite build for frontend
+  - Runs npm install for backend
+  - Starts backend (Node.js/Express) on internal port
+  - Serves frontend via nginx on port $DEPLOY_PORT (default 9000)
+  - nginx proxies /api/* → backend
+
+supervisord.conf manages both nginx and node processes inside
+the single container.
+
+
+----------------------------------------------------------------
+7. TROUBLESHOOTING
+----------------------------------------------------------------
+
+"plink is not recognized"
+  → Install PuTTY and add its folder to Windows PATH
+  → Restart PowerShell after adding to PATH
+
+"DEPLOY_HOST / DEPLOY_USERNAME / DEPLOY_PASSWORD must be set"
+  → Open backend\.env and add the DEPLOY_* lines listed above
+
+"SSH ERROR" or "Permission denied"
+  → Check DEPLOY_USERNAME and DEPLOY_PASSWORD are correct
+  → Make sure the user has sudo access on the server
+
+"docker compose: command not found" on server
+  → Install Docker Compose on the server:
+    sudo apt install docker-compose-plugin
+    or: sudo curl -L ... (see docker docs)
+
+To check logs on server directly:
+  ssh user@your.server.ip
+  cd hsrl_ui
+  sudo docker compose logs -f
+
+To restart without rebuild:
+  sudo docker compose up -d --force-recreate
+
+To do a full clean rebuild:
+  sudo docker compose down
+  sudo docker compose build --no-cache
+  sudo docker compose up -d
+
+
+----------------------------------------------------------------
+8. HOSTKEY FINGERPRINT
+----------------------------------------------------------------
+
+The script has a hardcoded SSH host key fingerprint:
+  SHA256:6Baen1grUYnDnTDoabyDf1AAgIES16u5NDj2KuvxaV0
+
+This is your server's fingerprint. If you deploy to a different
+server, update this value in deploy.ps1 line 39:
+  $HOSTKEY = "SHA256:your_new_server_fingerprint_here"
+
+To get your server's fingerprint:
+  ssh-keyscan -p 22 your.server.ip
+  or check when you first SSH in manually.
+
+================================================================
+END OF FILE
+================================================================

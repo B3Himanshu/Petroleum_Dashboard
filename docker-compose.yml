@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  hsrl:
+    build: .
+    image: hsrl-dashboard:latest
+    container_name: hsrl-dashboard
+    ports:
+      - "9000:8080"
+    env_file:
+      - backend/.env
+    restart: unless-stopped

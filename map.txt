@@ -1,0 +1,416 @@
+================================================================================
+HSRL DASHBOARD — SITE IMAGES & GOOGLE MAPS — DEEP DIVE
+================================================================================
+
+================================================================================
+1. IMAGE SOURCES OVERVIEW
+================================================================================
+
+Three image systems in the dashboard:
+
+  SOURCE                | REQUIRES API KEY | USED IN
+  ----------------------|------------------|--------
+  Local photos          | No               | SiteCard, SitePhotoGallery
+  Google Maps Embed     | No               | SiteCard fallback, InitialLandingState
+  OpenStreetMap Embed   | No               | CityMap (Location Dashboard)
+
+  PREPARED BUT NOT ACTIVE:
+  Google Static Map API | Yes              | (function exists, not called)
+  Google Street View API| Yes              | (function exists, not called)
+
+================================================================================
+2. LOCAL SITE PHOTOS
+================================================================================
+
+Location:    frontend/public/sites/
+URL pattern: /sites/site-{siteId}.jpg
+Format:      JPEG
+
+Files present (17 images):
+  site-1.jpg   (ANSON SS)
+  site-2.jpg   (BELGRAVE SS)
+  site-4.jpg   (BADDESLEY SS)
+  site-5.jpg   (SWANLEY SS)
+  site-6.jpg   (ASTWICK SS)
+  site-7.jpg   (VINEYARD SS)
+  site-8.jpg   (WEXHAM SS)
+  site-9.jpg   (LYE SS)
+  site-10.jpg  (GIRTON SS)
+  site-11.jpg  (PATCHAM SS)
+  site-13.jpg  (PARK ROYAL SS)
+  site-14.jpg  (Gravesend SS)
+  site-15.jpg  (Amersham SS)
+  site-16.jpg  (closed site — still present)
+  site-17.jpg  (closed site — still present)
+  site-18.jpg  (ERITH SS)
+
+Missing: site-3.jpg, site-12.jpg (SUBWAY — no photo)
+
+To add/replace: drop a .jpg named site-{id}.jpg into frontend/public/sites/
+
+================================================================================
+3. IMAGE LOADING CHAIN — SiteCard.jsx
+================================================================================
+
+SiteCard is the dashboard card showing each site's photo. Three-tier fallback:
+
+  STEP 1: Local Photo (Primary)
+  ├── Path: /sites/site-{siteId}.jpg
+  ├── siteId from: site.siteId || site.id || 0
+  ├── Only loads if siteId > 0
+  ├── Attributes: loading="lazy", decoding="async", object-cover
+  ├── On success: photo displayed
+  └── On error: sets photoError=true → triggers Step 2
+
+  STEP 2: Google Maps Embed (Fallback)
+  ├── Trigger: localPhoto is null OR photoError is true
+  ├── Gets coordinates: getSiteGeo(siteId) → { lat, lng }
+  ├── Builds URL: buildGoogleMapsEmbedUrl(geo, zoom=17)
+  ├── URL: https://www.google.com/maps?q={lat},{lng}&z=17&output=embed
+  ├── Rendered as: <iframe> with border-0, loading="lazy"
+  ├── No API key needed (basic embed)
+  └── If no geo data → triggers Step 3
+
+  STEP 3: MapPin Icon Placeholder (Final)
+  ├── Trigger: no geo data found for this siteId
+  ├── Rendered as: centered MapPin icon on bg-muted
+  └── Appearance: w-8 h-8 text-muted-foreground opacity-40
+
+  State reset: useEffect resets photoError to false when siteId changes.
+
+================================================================================
+4. IMAGE LOADING CHAIN — SitePhotoGallery.jsx
+================================================================================
+
+Used on Site Comparison page. Two-tier fallback (no Google Maps):
+
+  STEP 1: Local Photo
+  ├── buildSlides(siteId) returns: [{ src: "/sites/site-{siteId}.jpg", label: "Site Photo" }]
+  ├── Single slide per site (carousel controls hidden when 1 slide)
+  ├── On success: photo displayed in aspect-video container
+  └── On error: adds index to imageErrors Set → triggers Step 2
+
+  STEP 2: SVG Placeholder
+  ├── Function: generatePlaceholder(siteName, 800, 600)
+  ├── Generates: base64-encoded SVG data URI
+  ├── SVG content:
+  │     Background: dark gray (#1a1a1a)
+  │     Text: white, centered, siteName
+  │     Font: Arial, 24px (auto-scales for small containers)
+  │     Escapes: &amp; &lt; &gt; for HTML safety
+  ├── Format: data:image/svg+xml;base64,{encoded}
+  └── Guard: only triggers once per index (prevents infinite loop)
+
+  State on siteId change:
+    - loading = true (100ms delay)
+    - imageErrors = new Set()
+    - currentIndex = 0
+
+  Navigation (when multiple slides, future use):
+    - Left/Right arrows: circular navigation
+    - Thumbnails: h-20 w-28, active = primary border + ring
+    - Counter badge: "X / Y" bottom center
+
+================================================================================
+5. SITE COORDINATES — siteGeo.js
+================================================================================
+
+SITE_GEO_BY_ID — lat/lng for each site (used for map fallback):
+
+  ID | Site Name       | Latitude  | Longitude  | Area
+  ---|-----------------|-----------|------------|-----
+  1  | ANSON SS        | 52.487    | -1.894     | Birmingham
+  2  | BELGRAVE SS     | 52.637    | -1.140     | Leicester
+  4  | BADDESLEY SS    | 52.575    | -1.575     | Baddesley
+  5  | SWANLEY SS      | 51.395    |  0.169     | Swanley, Kent
+  6  | ASTWICK SS      | 52.214    | -0.315     | Astwick, Beds
+  7  | VINEYARD SS     | 51.590    | -0.102     | North London
+  8  | WEXHAM SS       | 51.548    | -0.568     | Wexham, Bucks
+  9  | LYE SS          | 52.458    | -2.109     | Lye, W. Midlands
+  10 | GIRTON SS       | 52.235    |  0.082     | Girton, Cambs
+  11 | PATCHAM SS      | 50.864    | -0.151     | Patcham, Brighton
+  13 | PARK ROYAL SS   | 51.527    | -0.262     | Park Royal, London
+  14 | Gravesend SS    | 51.442    |  0.371     | Gravesend, Kent
+  15 | Amersham SS     | 51.675    | -0.607     | Amersham, Bucks
+  18 | ERITH SS        | 51.481    |  0.175     | Erith, London
+
+  Missing geo: site 0 (HEAD OFFICE), 3/16/17 (closed), 12/19 (SUBWAY)
+
+================================================================================
+6. URL BUILDER FUNCTIONS — siteGeo.js
+================================================================================
+
+6a) buildGoogleMapsEmbedUrl(geo, zoom = 17)
+    CURRENTLY USED — SiteCard fallback
+    No API key required.
+
+    Input:  { lat: 52.487, lng: -1.894 }
+    Output: https://www.google.com/maps?q=52.487,-1.894&z=17&output=embed
+
+    Parameters:
+      q      = latitude,longitude (center + marker)
+      z      = zoom level (17 = street-level close-up)
+      output = embed (renders in iframe)
+
+6b) buildGoogleStaticMapUrl(geo, apiKey, options)
+    NOT CURRENTLY USED — prepared for future
+    Requires API key + Maps Static API enabled.
+
+    Input:  { lat: 52.487, lng: -1.894 }, "AIza...", { zoom: 17 }
+    Output: https://maps.googleapis.com/maps/api/staticmap?
+              center=52.487,-1.894
+              &zoom=17
+              &size=640x360
+              &maptype=satellite
+              &scale=2
+              &markers=color:red|52.487,-1.894
+              &key=AIza...
+
+    Parameters:
+      center  = lat,lng
+      zoom    = 17 (default)
+      size    = 640x360 (default, high-res with scale=2)
+      maptype = satellite (aerial view)
+      scale   = 2 (retina/HiDPI)
+      markers = red pin at center
+      key     = Google API key
+
+6c) buildGoogleStaticRoadMapUrl(geo, apiKey)
+    NOT CURRENTLY USED
+    Wrapper: calls buildGoogleStaticMapUrl with maptype=roadmap, zoom=16
+
+6d) buildGoogleStreetViewUrl(geo, apiKey, options)
+    NOT CURRENTLY USED
+    Requires API key + Street View Static API enabled.
+
+    Input:  { lat: 52.487, lng: -1.894 }, "AIza..."
+    Output: https://maps.googleapis.com/maps/api/streetview?
+              size=640x360
+              &location=52.487,-1.894
+              &fov=75
+              &pitch=0
+              &key=AIza...
+
+    Parameters:
+      size     = 640x360
+      location = lat,lng
+      fov      = 75° field of view
+      pitch    = 0° (horizontal camera)
+      key      = Google API key
+
+    Note: if no Street View coverage at location, returns gray image.
+
+================================================================================
+7. INITIAL LANDING STATE — UK MAP (InitialLandingState.jsx)
+================================================================================
+
+Full-screen animated UK map shown on Location Dashboard.
+
+7a) Google Maps Embed URL (hardcoded)
+    https://www.google.com/maps/embed?pb=!1m16!1m12!1m3!1d3497124...
+    !2d-5.152729...!3d52.752343...
+    !4f13.1!2m1!1suk%20cities!5e0!3m2!1sen!2sin
+
+    Decoded:
+      Zoom:     ~3.5M units (wide UK view)
+      Center:   lat 52.75, lng -5.15
+      Tilt:     13.1° (satellite-like 3D)
+      Search:   "uk cities"
+      Language: English, region India
+
+    No API key required (embed).
+
+7b) UK Bounding Box
+    west:  -9.0   (includes Ireland)
+    south:  49.8   (English Channel)
+    east:   2.8    (North Sea)
+    north:  60.5   (Scottish Highlands)
+
+7c) Pin Positioning — Web Mercator Projection
+
+    Longitude → X%:
+      lonNormalized = (lon - west) / (east - west)
+      xPercent = lonNormalized * 100
+
+    Latitude → Y% (Mercator):
+      mercatorY(lat) = ln(tan(π/4 + lat_radians/2))
+      latNormalized = (mercNorth - mercLat) / (mercNorth - mercSouth)
+      yPercent = latNormalized * 100
+
+    Final position (clamped 0–100%):
+      top  = base.top + PIN_OFFSET.y (1.5%) + CITY_OFFSET.y
+      left = base.left + PIN_OFFSET.x (1.0%) + CITY_OFFSET.x
+
+    Global offset: { x: 1.0%, y: 1.5% } — compensates for embed framing.
+    Per-city offsets: all { x: 0, y: 0 } currently (ready for fine-tuning).
+
+7d) Zoom Animation
+    Duration:    7 seconds (7000ms)
+    Steps:       140 (50ms intervals)
+    Easing:      cubic ease-out: 1 - (1 - progress)³
+    Start scale: 9 (world-level zoom)
+    End scale:   1.4 (UK focused)
+    Transform:   scale(9 - progress * 7.6)
+    Trigger:     dashboardVisible + mapLoaded, after 1200ms delay
+
+7e) City Data (23 cities with lat/lon/delta)
+
+    City              | Lat     | Lon     | Delta
+    ------------------|---------|---------|------
+    southampton       | 50.9097 | -1.4044 | 1.0
+    guildford         | 51.2362 | -0.5704 | 1.0
+    exmouth           | 50.6192 | -3.4140 | 1.0
+    truro             | 50.2632 | -5.0510 | 1.2
+    luton             | 51.8797 | -0.4175 | 1.0
+    peterborough      | 52.5739 | -0.2508 | 1.0
+    warrington        | 53.3929 | -2.5964 | 1.0
+    wisbech           | 52.6661 |  0.1595 | 1.0
+    huddersfield      | 53.6458 | -1.7850 | 1.0
+    oldham            | 53.5409 | -2.1114 | 1.0
+    matlock           | 53.1384 | -1.5556 | 1.0
+    stafford          | 52.8067 | -2.1168 | 1.0
+    birmingham        | 52.4862 | -1.8904 | 1.0
+    weymouth          | 50.6144 | -2.4576 | 1.0
+    lydney            | 51.7247 | -2.5303 | 1.0
+    evesham           | 52.0925 | -1.9475 | 1.0
+    crawley           | 51.1090 | -0.1872 | 1.0
+    dudley            | 52.5087 | -2.0877 | 1.0
+    shrewsbury        | 52.7073 | -2.7553 | 1.0
+    burnley           | 53.7893 | -2.2405 | 1.0
+    yeovil            | 50.9406 | -2.6349 | 1.0
+    rotherham         | 53.4308 | -1.3567 | 1.0
+    bury-st-edmunds   | 52.2469 |  0.7116 | 1.2
+
+7f) UI Overlays
+    - Loading spinner: dual-rotation, shown until iframe loads
+    - Lock overlay: pointer-events-auto cursor-not-allowed (view only)
+    - Info badges: "Primary Location / United Kingdom" (bottom-left),
+      "Zoom: 6x" + "View Only" (bottom-right)
+    - Cities legend: top-right, scrollable, colored dots per city
+    - Decorative corners: primary/blue/green/purple gradients
+
+================================================================================
+8. CITY MAP — OpenStreetMap (CityMap.jsx)
+================================================================================
+
+Used on Location Dashboard when a specific site is selected.
+
+8a) Map URL Construction
+    Base:    https://www.openstreetmap.org/export/embed.html
+    Params:  ?bbox={west},{south},{east},{north}&layer=mapnik
+
+    "All sites" view:
+      bbox=-8.0,49.8,2.0,61.0 (full UK)
+
+    Specific city (e.g. Birmingham, delta=0.06):
+      south = 52.4862 - 0.06 = 52.4262
+      north = 52.4862 + 0.06 = 52.5462
+      west  = -1.8904 - 0.06 = -1.9504
+      east  = -1.8904 + 0.06 = -1.8304
+      bbox=-1.9504,52.4262,-1.8304,52.5462
+
+    No API key required (OpenStreetMap is free).
+
+8b) Pin Overlay
+    Position: always center (50%, 50%) — city is centered in bbox
+    Visual:   red MapPin icon (w-10 h-10) + red pulse animation
+    Offset:   transform translate(-50%, -100%) so pin point touches center
+    Only shown: map loaded + specific city selected
+
+8c) City Config (22 cities)
+    Same cities as InitialLandingState but delta = 0.06 (tight zoom)
+    except truro (0.08) and bury-st-edmunds (0.08)
+
+8d) State Management
+    On siteId change:
+      - mapLoaded = false
+      - mapKey incremented (forces iframe remount)
+      - Fetches site data from sitesAPI.getById(siteId)
+      - Extracts .city for bbox lookup
+
+8e) Info Badge
+    Bottom-left: "Selected Location" + city name
+    Styling: bg-card/95 backdrop-blur-md rounded-lg
+
+================================================================================
+9. SITE DATA — sites.js
+================================================================================
+
+ALL_HSRL_SITES (17 entries):
+
+  ID | Name             | Status
+  ---|------------------|--------
+  0  | HEAD OFFICE      | Active (excluded from comparison)
+  1  | ANSON SS         | Active
+  2  | BELGRAVE SS      | Active
+  4  | BADDESLEY SS     | Active
+  5  | SWANLEY SS       | Active
+  6  | ASTWICK SS       | Active
+  7  | VINEYARD SS      | Active
+  8  | WEXHAM SS        | Active
+  9  | LYE SS           | Active
+  10 | GIRTON SS        | Active
+  11 | PATCHAM SS       | Active
+  12 | SUBWAY           | Active (excluded from comparison)
+  13 | PARK ROYAL SS    | Active
+  14 | Gravesend SS     | Active
+  15 | Amersham SS      | Active
+  18 | ERITH SS         | Active
+  19 | Erith Subway     | Active (excluded from comparison)
+
+  Closed (excluded from main dashboard): IDs 3, 16, 17
+  Excluded from comparison pages: IDs 0, 12, 19
+
+================================================================================
+10. GOOGLE MAPS API KEY SETUP
+================================================================================
+
+Set in frontend/.env:
+  VITE_GOOGLE_MAPS_API_KEY=your-key-here
+
+Required APIs in Google Cloud Console:
+  - Maps Static API     (satellite/road thumbnails)
+  - Street View Static API (street-level photos)
+
+Restriction: HTTP referrer → app URLs only.
+
+Currently NOT needed for core UX:
+  - Google embeds (SiteCard fallback, InitialLandingState) work without key
+  - OpenStreetMap (CityMap) is free
+  - Static Map / Street View functions exist but are not called
+
+Only set the key if you want to activate:
+  - buildGoogleStaticMapUrl()     → satellite thumbnails
+  - buildGoogleStaticRoadMapUrl() → road map thumbnails
+  - buildGoogleStreetViewUrl()    → street-level photos
+
+================================================================================
+11. COMPLETE FLOW DIAGRAM
+================================================================================
+
+  USER OPENS DASHBOARD
+  ├── Location Dashboard (/location-dashboard)
+  │   ├── InitialLandingState: Google Maps embed (hardcoded UK URL)
+  │   │   ├── 7-second zoom animation (scale 9 → 1.4)
+  │   │   ├── 23 city pins positioned via Web Mercator projection
+  │   │   └── View-only (locked, no interaction)
+  │   ├── CityMap: OpenStreetMap embed
+  │   │   ├── "All" → UK bbox (-8.0,49.8,2.0,61.0)
+  │   │   ├── Specific site → city bbox (lat±delta, lon±delta)
+  │   │   └── Red pin overlay at center + pulse animation
+  │   └── SiteCard (per-site cards):
+  │       ├── Try: /sites/site-{id}.jpg
+  │       ├── Fail: Google Maps embed iframe (no API key)
+  │       └── No geo: MapPin icon placeholder
+  │
+  ├── Site Comparison (/comparison)
+  │   └── SitePhotoGallery (per-site):
+  │       ├── Try: /sites/site-{id}.jpg
+  │       └── Fail: SVG placeholder (dark gray + site name text)
+  │
+  └── Metrics Comparison (/metrics-comparison)
+      └── Uses SiteCard (same chain as above)
+
+================================================================================
+END OF map.txt
+================================================================================

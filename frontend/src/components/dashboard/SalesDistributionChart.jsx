@@ -2,16 +2,23 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Plot from "react-plotly.js";
 import { TrendingUp } from "lucide-react";
 import { dashboardAPI } from "@/services/api";
+import {
+  COFFEE_VALET_REVENUE_LABEL,
+  LEGACY_VALET_REVENUE_LABEL,
+  matchesCoffeeValetRevenueName,
+} from "@/constants/revenueLabels";
 
+const VALET_SLICE_COLOR = "#8b5cf6";
 const colorMap = {
-  "Fuel Sales": "#3b82f6",
-  "Bunkered Sales": "#3b82f6",
+  "Fuel Sales": "hsl(var(--chart-blue))",
+  "Bunkered Sales": "hsl(var(--chart-blue))",
   "Non-bunkered Sales": "#10b981",
   "Shop Sales": "#f59e0b",
-  "Valet Sales": "#8b5cf6",
+  [COFFEE_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
+  [LEGACY_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
 };
 
-const colors = ["#3b82f6", "#10b981", "#f59e0b", "#f97316", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f43f5e", "#a855f7"];
+const colors = ["hsl(var(--chart-blue))", "#10b981", "#f59e0b", "#f97316", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16", "#f43f5e", "#a855f7"];
 
 export const SalesDistributionChart = ({ siteId, month, months, year, years }) => {
   const [chartData, setChartData] = useState([]);
@@ -66,10 +73,10 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
         
         console.log('📊 [SalesDistributionChart] Received data:', data);
         
-        // Filter out Valet Sales and any items with zero or very small values
+        // Filter out Coffee & Valet slice and any items with zero or very small values
         // Show Fuel Sales and Shop Sales only
         const filteredData = data.filter(item => 
-          item.name !== "Valet Sales" &&
+          !matchesCoffeeValetRevenueName(item.name) &&
           item.value > 0.01 // Only include items with meaningful values
         );
         
@@ -310,8 +317,8 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold text-foreground">Sales Distribution</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Sales breakdown by category</p>
+              <h3 className="dash-chart-heading">Sales Distribution</h3>
+              <p className="dash-chart-subtitle">Sales breakdown by category</p>
             </div>
           </div>
         </div>
@@ -330,11 +337,11 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-foreground">Sales Distribution</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Sales breakdown by category</p>
+            <h3 className="dash-chart-heading">Sales Distribution</h3>
+            <p className="dash-chart-subtitle">Sales breakdown by category</p>
           </div>
         </div>
-        <div className="text-xs sm:text-sm font-semibold text-foreground bg-card/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-border/50 whitespace-nowrap">
+        <div className="text-sm sm:text-base font-semibold text-foreground bg-card/50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-border/50 whitespace-nowrap">
           Total: {formatCurrency(total)}
         </div>
       </div>
@@ -359,7 +366,7 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
                     pieTextElements.forEach((textEl) => {
                       textEl.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.9), -2px -2px 4px rgba(0, 0, 0, 0.9), 2px -2px 4px rgba(0, 0, 0, 0.9), -2px 2px 4px rgba(0, 0, 0, 0.9)';
                       textEl.style.fontWeight = 'bold';
-                      textEl.style.fontSize = currentIsMobile ? '11px' : '13px';
+                      textEl.style.fontSize = currentIsMobile ? '13px' : '15px';
                     });
                     // Ensure Plotly container background is transparent
                     const plotlyContainer = graphDiv.querySelector('.js-plotly-plot');
@@ -382,7 +389,7 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
                     pieTextElements.forEach((textEl) => {
                       textEl.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.9), -2px -2px 4px rgba(0, 0, 0, 0.9), 2px -2px 4px rgba(0, 0, 0, 0.9), -2px 2px 4px rgba(0, 0, 0, 0.9)';
                       textEl.style.fontWeight = 'bold';
-                      textEl.style.fontSize = currentIsMobile ? '11px' : '13px';
+                      textEl.style.fontSize = currentIsMobile ? '13px' : '15px';
                     });
                     // Ensure Plotly container background is transparent
                     const plotlyContainer = graphDiv.querySelector('.js-plotly-plot');
@@ -399,17 +406,17 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
               />
             </div>
           ) : (
-            <div className="text-muted-foreground">No data available</div>
+            <div className="text-muted-foreground text-sm sm:text-base">No data available</div>
           )}
         </div>
 
         {/* Legend Table */}
         <div className="overflow-y-auto h-[250px] sm:h-[300px] lg:h-[320px] bg-transparent rounded-lg">
-          <table className="w-full text-xs sm:text-sm bg-transparent">
+          <table className="w-full text-sm sm:text-base bg-transparent">
             <thead className="sticky top-0 bg-card z-10 border-b border-border">
               <tr className="border-b border-border">
-                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-semibold text-foreground">Category</th>
-                <th className="text-right py-2 sm:py-3 px-2 sm:px-4 font-semibold text-foreground">Sales</th>
+                <th className="text-left py-2 sm:py-3 px-2 sm:px-4 dash-table-head">Category</th>
+                <th className="text-right py-2 sm:py-3 px-2 sm:px-4 dash-table-head">Sales</th>
               </tr>
             </thead>
             <tbody className="bg-transparent">
@@ -424,17 +431,17 @@ export const SalesDistributionChart = ({ siteId, month, months, year, years }) =
                         className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm flex-shrink-0"
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-foreground font-medium truncate">{item.name}</span>
+                      <span className="dash-table-cell font-medium truncate">{item.name}</span>
                     </div>
                   </td>
-                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-right text-foreground font-medium whitespace-nowrap">
+                  <td className="py-2 sm:py-3 px-2 sm:px-4 text-right dash-table-cell font-medium whitespace-nowrap">
                     {formatCurrency(item.value)}
                   </td>
                 </tr>
               ))}
               <tr className="border-t-2 border-border font-semibold bg-muted/20">
-                <td className="py-2 sm:py-3 px-2 sm:px-4 text-foreground">Total</td>
-                <td className="py-2 sm:py-3 px-2 sm:px-4 text-right text-foreground">
+                <td className="py-2 sm:py-3 px-2 sm:px-4 dash-table-cell">Total</td>
+                <td className="py-2 sm:py-3 px-2 sm:px-4 text-right dash-table-cell">
                   {formatCurrency(total)}
                 </td>
               </tr>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -8,30 +8,68 @@ import {
 } from "chart.js";
 import { TrendingUp } from "lucide-react";
 import { dashboardAPI } from "@/services/api";
+import { revenueMixFromNetSalesBreakdown } from "@/lib/petrolDashboardMetrics";
+import {
+  COFFEE_VALET_REVENUE_LABEL,
+  LEGACY_VALET_REVENUE_LABEL,
+} from "@/constants/revenueLabels";
 
 // Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const colorMap = {
-  "Fuel Sales": "#3b82f6",
-  "Shop Sales": "#f59e0b",
-  "Valet Sales": "#8b5cf6",
+/** Tooltip anchor at bottom-center of plot + yAlign:top opens the box downward into layout padding (avoids hole labels). */
+Tooltip.positioners.salesMixBelowPlot = function salesMixBelowPlot(items) {
+  if (!items.length) return false;
+  const chart = items[0].element.$context.chart;
+  const { chartArea } = chart;
+  return {
+    x: (chartArea.left + chartArea.right) / 2,
+    y: chartArea.bottom,
+  };
 };
 
-export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, months, years, loading, comparisonSite1Data, comparisonSite2Data }) => {
+/** Space left under the arc so the canvas tooltip can render without covering the hole labels.
+ *  Reduced on mobile (48px) since the tooltip is smaller and screen space is tight. */
+const CHART_TOOLTIP_RESERVE_DESKTOP = 68;
+const CHART_TOOLTIP_RESERVE_MOBILE = 44;
+
+/** Hex colors — Chart.js canvas does not resolve `hsl(var(--…))`; avoids “black ring” from invalid fill. */
+const VALET_SLICE_COLOR = "#8b5cf6";
+const colorMap = {
+  "Fuel Sales": "#4f6df5",
+  "Shop Sales": "#f59e0b",
+  [COFFEE_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
+  [LEGACY_VALET_REVENUE_LABEL]: VALET_SLICE_COLOR,
+};
+
+export const ComparisonPieCharts = ({
+  site1Id,
+  site2Id,
+  site1Name,
+  site2Name,
+  startDate,
+  endDate,
+  loading,
+  comparisonSite1Data,
+  comparisonSite2Data,
+}) => {
   const [site1Data, setSite1Data] = useState([]);
   const [site2Data, setSite2Data] = useState([]);
   const [site1FullData, setSite1FullData] = useState([]);
   const [site2FullData, setSite2FullData] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [animationProgress, setAnimationProgress] = useState(0);
-  const [hasAnimated, setHasAnimated] = useState(false);
-  const chartsRef = useRef(null);
-  const chart1Ref = useRef(null);
-  const chart2Ref = useRef(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
 
   useEffect(() => {
-    if (!site1Id || !site2Id || months.length === 0 || years.length === 0) {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const tooltipReservePx = isMobile ? CHART_TOOLTIP_RESERVE_MOBILE : CHART_TOOLTIP_RESERVE_DESKTOP;
+
+  useEffect(() => {
+    if (!site1Id || !site2Id || !startDate || !endDate) {
       setSite1Data([]);
       setSite2Data([]);
       setSite1FullData([]);
@@ -42,11 +80,12 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
     const fetchData = async () => {
       try {
         setLoadingData(true);
-        let raw1 = await dashboardAPI.getSalesDistribution(site1Id, months, years);
-        let raw2 = await dashboardAPI.getSalesDistribution(site2Id, months, years);
-        // Handle nested response (e.g. { data: [...] }) or direct array
-        const data1 = Array.isArray(raw1) ? raw1 : (raw1?.data && Array.isArray(raw1.data) ? raw1.data : []);
-        const data2 = Array.isArray(raw2) ? raw2 : (raw2?.data && Array.isArray(raw2.data) ? raw2.data : []);
+        const [raw1, raw2] = await Promise.all([
+          dashboardAPI.getPetrolNetSalesBreakdown(startDate, endDate, [site1Id]),
+          dashboardAPI.getPetrolNetSalesBreakdown(startDate, endDate, [site2Id]),
+        ]);
+        const data1 = revenueMixFromNetSalesBreakdown(raw1);
+        const data2 = revenueMixFromNetSalesBreakdown(raw2);
 
         // Transform data for charts - show all segments with minimum visual representation
         const transformData = (data) => {
@@ -64,9 +103,9 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
               name: item.name,
               value,
               displayValue,
-              color: colorMap[item.name] || "#8884d8",
+              color: colorMap[item.name] || "#64748b",
               percentage,
-              isZero: value <= 0.01
+              isZero: value <= 0.01,
             };
           });
           
@@ -99,73 +138,26 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
     };
 
     fetchData();
-  }, [site1Id, site2Id, months, years]);
+  }, [site1Id, site2Id, startDate, endDate]);
 
-  // Intersection Observer for scroll-triggered animation
-  useEffect(() => {
-    if (!chartsRef.current || hasAnimated || !site1Data.length || !site2Data.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasAnimated) {
-            setHasAnimated(true);
-            // Start animation
-            let startTime = null;
-            const duration = 1500; // 1.5 seconds
-
-            const animate = (timestamp) => {
-              if (!startTime) startTime = timestamp;
-              const progress = Math.min((timestamp - startTime) / duration, 1);
-              
-              // Easing function for smooth animation (ease-out)
-              const easedProgress = 1 - Math.pow(1 - progress, 3);
-              setAnimationProgress(easedProgress);
-
-              if (progress < 1) {
-                requestAnimationFrame(animate);
-              } else {
-                setAnimationProgress(1);
-              }
-            };
-
-            requestAnimationFrame(animate);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      {
-        threshold: 0.2, // Trigger when 20% of the component is visible
-        rootMargin: '0px',
-      }
-    );
-
-    observer.observe(chartsRef.current);
-
-    return () => {
-      if (chartsRef.current) {
-        observer.unobserve(chartsRef.current);
-      }
-    };
-  }, [site1Data, site2Data, hasAnimated]);
-
-  // Reset animation when data changes
-  useEffect(() => {
-    setHasAnimated(false);
-    setAnimationProgress(0);
-  }, [site1Data, site2Data]);
-
-  // Format total for display
+  // Format total / segment £ for display
   const formatTotal = (value) => {
-    if (value >= 1000000) {
-      return `£${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `£${(value / 1000).toFixed(2)}k`;
+    const v = Math.abs(Number(value) || 0);
+    if (v >= 1000000) {
+      return `£${(v / 1000000).toFixed(2)}M`;
     }
-    return `£${value.toFixed(2)}`;
+    if (v >= 1000) {
+      return `£${(v / 1000).toFixed(2)}k`;
+    }
+    return `£${v.toFixed(2)}`;
   };
 
-  // Total: prefer comparison net sales (so it matches metrics card); else use distribution sum
+  const formatSegmentExact = (value) => {
+    const v = Math.abs(Number(value) || 0);
+    const [i, d] = v.toFixed(2).split(".");
+    return `£${i.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${d}`;
+  };
+
   const num = (v) => Math.abs(Number(v) || 0);
   const distTotal1 = site1FullData.length > 0
     ? site1FullData.reduce((sum, item) => sum + num(item.value), 0)
@@ -177,30 +169,66 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const netSales2 = num(comparisonSite2Data?.netSales);
   const baseTotal1 = netSales1 > 0 ? netSales1 : distTotal1;
   const baseTotal2 = netSales2 > 0 ? netSales2 : distTotal2;
-  
-  // Animated totals (for donut segments only); header/center labels use baseTotal directly
-  const animTotal1 = baseTotal1 * animationProgress;
-  const animTotal2 = baseTotal2 * animationProgress;
 
-  // Create chart data for Chart.js with animation
+  /** Legend: always show £ + %; % = share of fuel + shop + Coffee & Valet (matches pie slices). */
+  const SalesMixLegend = ({ items, mixTotal }) => (
+    <div className="w-full mt-2 space-y-2 sm:space-y-3">
+      {(items || []).map((item) => {
+        const amt = num(item.value);
+        const pct = mixTotal > 0 ? (amt / mixTotal) * 100 : 0;
+        return (
+          <div
+            key={item.name}
+            className="rounded-lg border border-border/50 bg-muted/15 px-2.5 sm:px-3 py-2 sm:py-2.5 text-left"
+          >
+            <div className="flex items-center gap-2 mb-0.5 sm:mb-1">
+              <span
+                className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="text-xs sm:text-sm font-semibold" style={{ color: item.color }}>
+                {item.name}
+              </span>
+            </div>
+            <p className="pl-3.5 sm:pl-4 text-xs sm:text-sm leading-snug break-words">
+              <span className="font-semibold tabular-nums text-foreground">
+                {formatSegmentExact(item.value)}
+              </span>
+              <span className="text-muted-foreground">
+                {" "}
+                · {pct.toFixed(3)}%
+              </span>
+            </p>
+          </div>
+        );
+      })}
+      {mixTotal > 0 && (
+        <p className="text-[10px] text-muted-foreground text-center pt-1">
+          Amounts: Fuel / Shop / Coffee &amp; Valet · % = share of this mix (sums to 100%)
+        </p>
+      )}
+    </div>
+  );
+
+  // Real £ values per segment (Chart.js had zero-sized arcs while animationProgress stayed 0).
   const createChartData = (data, fullData) => {
     return {
-      labels: data.map(item => item.name),
+      labels: data.map((item) => item.name),
       datasets: [
         {
-          label: 'Sales',
-          data: data.map(item => {
-            // Animate the display value
-            const animatedValue = item.displayValue * animationProgress;
-            return animatedValue;
-          }),
-          backgroundColor: data.map(item => item.isZero ? `${item.color}4D` : item.color), // 30% opacity for 0% values
-          borderColor: data.map(item => 'hsl(var(--card))'),
-          borderWidth: 5,
-          borderRadius: 6,
-          spacing: 6, // Gap between segments
-          cutout: '60%', // Donut hole size
-          originalData: fullData, // Store original data for tooltip
+          label: "Sales",
+          data: data.map((item) =>
+            item.value > 0.01 ? item.value : Math.max(item.displayValue, 1e-6)
+          ),
+          backgroundColor: data.map((item) =>
+            item.isZero ? `${item.color}99` : item.color
+          ),
+          borderColor: data.map(() => "rgba(255, 255, 255, 0.92)"),
+          borderWidth: 1,
+          spacing: 2,
+          hoverBorderColor: "#ffffff",
+          hoverBorderWidth: 2,
+          originalData: fullData,
         },
       ],
     };
@@ -210,18 +238,37 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const createChartOptions = (fullData, total) => ({
     responsive: true,
     maintainAspectRatio: false,
+    cutout: "60%",
+    layout: {
+      padding: {
+        left: 6,
+        right: 6,
+        top: 4,
+        bottom: tooltipReservePx,
+      },
+    },
     plugins: {
       legend: {
         display: false, // We'll use custom legend
       },
       tooltip: {
         enabled: true,
-        backgroundColor: 'hsl(222, 47%, 11%)',
-        borderColor: 'hsl(217, 33%, 17%)',
+        position: "salesMixBelowPlot",
+        xAlign: "center",
+        yAlign: "top",
+        caretPadding: 10,
+        caretSize: 7,
+        backgroundColor: "rgba(255, 255, 255, 0.96)",
+        borderColor: "rgba(148, 163, 184, 0.5)",
         borderWidth: 1,
-        padding: 12,
-        titleColor: '#ffffff',
-        bodyColor: '#ffffff',
+        padding: 14,
+        titleColor: "#0f172a",
+        bodyColor: "#334155",
+        titleFont: { size: 14, weight: "600" },
+        bodyFont: { size: 13 },
+        displayColors: true,
+        boxPadding: 6,
+        usePointStyle: true,
         callbacks: {
           title: function(context) {
             return context[0].label;
@@ -244,6 +291,7 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
     animation: {
       animateRotate: true,
       animateScale: false,
+      duration: 600,
     },
   });
 
@@ -252,25 +300,12 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   const chart1Options = createChartOptions(site1FullData.length > 0 ? site1FullData : site1Data, baseTotal1);
   const chart2Options = createChartOptions(site2FullData.length > 0 ? site2FullData : site2Data, baseTotal2);
 
-  // Update charts when animation progresses
-  useEffect(() => {
-    if (chart1Ref.current && chart2Ref.current && hasAnimated && animationProgress > 0) {
-      // Force chart update by updating the data
-      if (chart1Ref.current.chartInstance) {
-        chart1Ref.current.chartInstance.update();
-      }
-      if (chart2Ref.current.chartInstance) {
-        chart2Ref.current.chartInstance.update();
-      }
-    }
-  }, [animationProgress, hasAnimated]);
-
   // Early return after all hooks
   if (loading || loadingData) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {[1, 2].map((i) => (
-          <div key={i} className="chart-card h-[450px] animate-pulse">
+          <div key={i} className="chart-card min-h-[320px] animate-pulse">
             <div className="flex items-center justify-center h-full">
               <div className="text-muted-foreground">Loading chart data...</div>
             </div>
@@ -281,125 +316,91 @@ export const ComparisonPieCharts = ({ site1Id, site2Id, site1Name, site2Name, mo
   }
 
   return (
-    <div ref={chartsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Site 1 Pie Chart */}
-      <div className="chart-card h-[450px] animate-slide-up">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
-              <TrendingUp className="w-5 h-5 text-primary" />
+      <div className="chart-card animate-slide-up overflow-visible pb-4 sm:pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-border/50">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm shrink-0">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">{site1Name}</h3>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-lg font-bold text-foreground truncate">{site1Name}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Sales Distribution</p>
             </div>
           </div>
-          <div className="px-3 py-1.5 rounded-md bg-primary/5 border border-primary/20">
-            <span className="text-xs text-muted-foreground mr-1">Total:</span>
-            <span className="text-sm font-bold text-primary">{formatTotal(baseTotal1)}</span>
+          <div className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md bg-primary/5 border border-primary/20 shrink-0">
+            <span className="text-[10px] sm:text-xs text-muted-foreground mr-1">Total:</span>
+            <span className="text-xs sm:text-sm font-bold text-primary">{formatTotal(baseTotal1)}</span>
           </div>
         </div>
 
         {site1Data.length === 0 ? (
-          <div className="flex items-center justify-center h-[280px]">
+          <div className="flex items-center justify-center min-h-[200px]">
             <p className="text-muted-foreground">No data available</p>
           </div>
         ) : (
-          <div className="w-full relative flex items-center justify-center" style={{ minHeight: '200px', height: '280px', maxHeight: '280px' }}>
-            <div className="w-full h-full" style={{ aspectRatio: '1', maxWidth: '100%', maxHeight: '100%', position: 'relative' }}>
-              <Doughnut 
-                ref={chart1Ref}
-                data={chart1Data} 
-                options={chart1Options}
-              />
-              {/* Center label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-sm font-semibold text-foreground opacity-85" style={{ letterSpacing: '0.02em' }}>
-                  Total Sales
-                </span>
-                <span className="text-2xl font-bold text-foreground" style={{ letterSpacing: '-0.02em' }}>
+          <div className="w-full flex flex-col items-stretch gap-2">
+            <div className="relative mx-auto w-[min(240px,100%)] max-w-full h-[min(240px,calc(100vw-48px))] shrink-0 sm:h-[min(268px,calc(100vw-48px))] sm:w-[min(240px,100%)]">
+              <Doughnut data={chart1Data} options={chart1Options} />
+              <div
+                className="absolute inset-x-0 top-0 flex flex-col items-center justify-center pointer-events-none z-10 px-2 text-center"
+                style={{ bottom: tooltipReservePx }}
+              >
+                <span className="text-[10px] sm:text-xs font-semibold text-foreground/90">Total Sales</span>
+                <span className="text-base sm:text-xl font-bold text-foreground leading-tight">
                   {formatTotal(baseTotal1)}
                 </span>
               </div>
             </div>
-            {/* Custom Legend - shows all values including 0% */}
-            <div className="mt-4 flex flex-wrap justify-center gap-4">
-              {(site1FullData.length > 0 ? site1FullData : site1Data).map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-sm font-medium text-foreground">
-                    <span style={{ color: item.color, fontWeight: 600 }}>{item.name}</span>
-                    <span className="ml-1.5 text-muted-foreground font-normal">
-                      ({item.percentage !== undefined ? item.percentage.toFixed(3) : (baseTotal1 > 0 ? ((item.value / baseTotal1) * 100).toFixed(3) : '0.000')}%)
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
+            <SalesMixLegend
+              items={site1FullData.length > 0 ? site1FullData : site1Data}
+              mixTotal={distTotal1}
+            />
           </div>
         )}
       </div>
 
       {/* Site 2 Pie Chart */}
-      <div className="chart-card h-[450px] animate-slide-up">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
-              <TrendingUp className="w-5 h-5 text-primary" />
+      <div className="chart-card animate-slide-up overflow-visible pb-4 sm:pb-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-border/50">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm shrink-0">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">{site2Name}</h3>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-lg font-bold text-foreground truncate">{site2Name}</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Sales Distribution</p>
             </div>
           </div>
-          <div className="px-3 py-1.5 rounded-md bg-primary/5 border border-primary/20">
-            <span className="text-xs text-muted-foreground mr-1">Total:</span>
-            <span className="text-sm font-bold text-primary">{formatTotal(baseTotal2)}</span>
+          <div className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md bg-primary/5 border border-primary/20 shrink-0">
+            <span className="text-[10px] sm:text-xs text-muted-foreground mr-1">Total:</span>
+            <span className="text-xs sm:text-sm font-bold text-primary">{formatTotal(baseTotal2)}</span>
           </div>
         </div>
 
         {site2Data.length === 0 ? (
-          <div className="flex items-center justify-center h-[280px]">
+          <div className="flex items-center justify-center min-h-[200px]">
             <p className="text-muted-foreground">No data available</p>
           </div>
         ) : (
-          <div className="w-full relative flex items-center justify-center" style={{ minHeight: '200px', height: '280px', maxHeight: '280px' }}>
-            <div className="w-full h-full" style={{ aspectRatio: '1', maxWidth: '100%', maxHeight: '100%', position: 'relative' }}>
-              <Doughnut 
-                ref={chart2Ref}
-                data={chart2Data} 
-                options={chart2Options}
-              />
-              {/* Center label */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-sm font-semibold text-foreground opacity-85" style={{ letterSpacing: '0.02em' }}>
-                  Total Sales
-                </span>
-                <span className="text-2xl font-bold text-foreground" style={{ letterSpacing: '-0.02em' }}>
+          <div className="w-full flex flex-col items-stretch gap-2">
+            <div className="relative mx-auto w-[min(240px,100%)] max-w-full h-[min(240px,calc(100vw-48px))] shrink-0 sm:h-[min(268px,calc(100vw-48px))] sm:w-[min(240px,100%)]">
+              <Doughnut data={chart2Data} options={chart2Options} />
+              <div
+                className="absolute inset-x-0 top-0 flex flex-col items-center justify-center pointer-events-none z-10 px-2 text-center"
+                style={{ bottom: tooltipReservePx }}
+              >
+                <span className="text-[10px] sm:text-xs font-semibold text-foreground/90">Total Sales</span>
+                <span className="text-base sm:text-xl font-bold text-foreground leading-tight">
                   {formatTotal(baseTotal2)}
                 </span>
               </div>
             </div>
-            {/* Custom Legend - shows all values including 0% */}
-            <div className="mt-4 flex flex-wrap justify-center gap-4">
-              {(site2FullData.length > 0 ? site2FullData : site2Data).map((item) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-sm font-medium text-foreground">
-                    <span style={{ color: item.color, fontWeight: 600 }}>{item.name}</span>
-                    <span className="ml-1.5 text-muted-foreground font-normal">
-                      ({item.percentage !== undefined ? item.percentage.toFixed(3) : (baseTotal2 > 0 ? ((item.value / baseTotal2) * 100).toFixed(3) : '0.000')}%)
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
+            <SalesMixLegend
+              items={site2FullData.length > 0 ? site2FullData : site2Data}
+              mixTotal={distTotal2}
+            />
           </div>
         )}
       </div>

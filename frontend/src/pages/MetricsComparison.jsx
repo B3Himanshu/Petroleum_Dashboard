@@ -1,15 +1,17 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Header } from "@/components/dashboard/Header";
 import { SiteCard } from "@/components/dashboard/SiteCard";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
 import { sitesAPI, dashboardAPI } from "@/services/api";
-import { BarChart3, Filter, Table as TableIcon, PieChart } from "lucide-react";
+import { ALL_HSRL_SITES, filterSitesForComparisonPages } from "@/constants/sites";
+import { getComparisonPagesDefaultDateRange } from "@/lib/petrolDashboardMetrics";
+import { BarChart3, Filter, Table as TableIcon, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { COFFEE_VALET_REVENUE_LABEL } from "@/constants/revenueLabels";
 import {
   Table,
   TableBody,
@@ -19,8 +21,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Plot from "react-plotly.js";
+import { useTheme } from "@/contexts/ThemeContext";
+
+const METRICS_COMPARISON_STORAGE_KEY = "metricsComparisonFilters_v2";
+const ALL_METRICS = ['sales', 'profit', 'saleVolume', 'ppl'];
 
 const MetricsComparison = () => {
+  const { theme } = useTheme();
+  const isDarkChart = theme === "dark";
+  const metricsDataFetchIdRef = useRef(0);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth >= 1024;
@@ -30,48 +39,81 @@ const MetricsComparison = () => {
 
   // Metrics options
   const METRICS_OPTIONS = [
-    { value: 'sales', label: 'Sales', color: '#3b82f6' },
-    { value: 'profit', label: 'Profit', color: '#10b981' },
+    { value: 'sales', label: 'Sales', color: '#4f6df5' },
+    { value: 'profit', label: 'Gross Profit', color: '#10b981' },
     { value: 'saleVolume', label: 'Sale Volume', color: '#f59e0b' },
-    { value: 'ppl', label: 'PPL', color: '#8b5cf6' },
+    { value: 'ppl', label: 'PPL after O/H', color: '#8b5cf6' },
   ];
 
-  // Same default date range as Business Performance Dashboard: May–Dec 2025; Jan–Apr not selectable
-  const getDefaultDates = () => ({ startDate: '2025-05-01', endDate: '2025-12-31' });
+  const getDefaultDates = getComparisonPagesDefaultDateRange;
 
-  // Load saved filters from sessionStorage (support startDate/endDate like Business Performance Dashboard)
-  const loadSavedFilters = () => {
+  const loadSavedDates = () => {
     try {
-      const saved = sessionStorage.getItem('metricsComparisonFilters');
+      const saved = sessionStorage.getItem(METRICS_COMPARISON_STORAGE_KEY);
       if (saved) {
         const filters = JSON.parse(saved);
         const defaultDates = getDefaultDates();
         return {
           startDate: filters.startDate || defaultDates.startDate,
           endDate: filters.endDate || defaultDates.endDate,
-          metrics: filters.metrics || ['sales', 'profit', 'saleVolume', 'ppl']
         };
       }
     } catch (error) {
       console.error('Error loading saved filters:', error);
     }
-    const defaultDates = getDefaultDates();
-    return {
-      startDate: defaultDates.startDate,
-      endDate: defaultDates.endDate,
-      metrics: ['sales', 'profit', 'saleVolume', 'ppl']
-    };
+    return getDefaultDates();
   };
 
-  const savedFilters = loadSavedFilters();
+  const savedDates = loadSavedDates();
 
-  // Date range (same calendar as Business Performance Dashboard; default May–Dec 2025)
-  const [startDate, setStartDate] = useState(savedFilters.startDate);
-  const [endDate, setEndDate] = useState(savedFilters.endDate);
+  // Pending state — what the user is editing in the filter UI
+  const [pendingStartDate, setPendingStartDate] = useState(savedDates.startDate);
+  const [pendingEndDate, setPendingEndDate] = useState(savedDates.endDate);
+  const [pendingMetrics, setPendingMetrics] = useState(ALL_METRICS);
 
-  // Pending filter state for metrics (Apply button)
-  const [pendingMetrics, setPendingMetrics] = useState(savedFilters.metrics);
-  const [appliedMetrics, setAppliedMetrics] = useState(savedFilters.metrics);
+  // Applied state — what actually drives data fetching
+  const [startDate, setStartDate] = useState(savedDates.startDate);
+  const [endDate, setEndDate] = useState(savedDates.endDate);
+  const [appliedMetrics, setAppliedMetrics] = useState(ALL_METRICS);
+
+  // Bar chart independent visibility — only affects which bars are shown in the chart
+  const [chartVisibleMetrics, setChartVisibleMetrics] = useState(ALL_METRICS);
+  const toggleChartMetric = (value) => {
+    setChartVisibleMetrics(prev =>
+      prev.includes(value)
+        ? prev.length > 1 ? prev.filter(m => m !== value) : prev
+        : [...prev, value]
+    );
+  };
+
+  const toggleMetric = (value) => {
+    setPendingMetrics(prev =>
+      prev.includes(value)
+        ? prev.length > 1 ? prev.filter(m => m !== value) : prev
+        : [...prev, value]
+    );
+  };
+
+  const handleConfirmFilters = () => {
+    setStartDate(pendingStartDate);
+    setEndDate(pendingEndDate);
+    setAppliedMetrics(pendingMetrics);
+    setChartVisibleMetrics(pendingMetrics); // reset chart toggles to match new applied metrics
+    try {
+      sessionStorage.setItem(METRICS_COMPARISON_STORAGE_KEY, JSON.stringify({
+        startDate: pendingStartDate,
+        endDate: pendingEndDate,
+      }));
+    } catch (e) {
+      console.error('Error saving filters:', e);
+    }
+  };
+
+  // Track whether pending differs from applied (to highlight Confirm button)
+  const hasUnappliedChanges =
+    pendingStartDate !== startDate ||
+    pendingEndDate !== endDate ||
+    pendingMetrics.join() !== appliedMetrics.join();
   
   // View state - table or charts (load from sessionStorage)
   const loadViewMode = () => {
@@ -83,6 +125,9 @@ const MetricsComparison = () => {
     }
   };
   const [viewMode, setViewMode] = useState(loadViewMode());
+
+  /** Table-only sort; `key: null` keeps the same order as charts (first metric, desc). */
+  const [tableSort, setTableSort] = useState({ key: null, direction: "desc" });
   
   // Save view mode to sessionStorage
   useEffect(() => {
@@ -113,8 +158,6 @@ const MetricsComparison = () => {
     }
     return false;
   });
-  const [totalSalesAllSites, setTotalSalesAllSites] = useState(null);
-  
   // Update responsive state on window resize
   useEffect(() => {
     const handleResize = () => {
@@ -141,39 +184,38 @@ const MetricsComparison = () => {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // Fetch total sales across all sites (all months, all years)
-  useEffect(() => {
-    const fetchTotalSales = async () => {
-      try {
-        // Get all sales data (no month/year filter) - shows grand total
-        console.log('📊 [MetricsComparison] Fetching total sales across all sites (all data):');
-        
-        const totalSalesData = await dashboardAPI.getTotalSales(null, null);
-        setTotalSalesAllSites(totalSalesData?.totalSales || 0);
-        
-        console.log('✅ [MetricsComparison] Total sales across all sites received:', {
-          totalSales: totalSalesData?.totalSales,
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('❌ [MetricsComparison] Error fetching total sales:', error);
-        setTotalSalesAllSites(0);
-      }
-    };
-
-    fetchTotalSales();
-  }, []); // Only fetch once on mount
-
-  // Fetch all sites
+  // Sites: same list as Site Comparison (filterSitesForComparisonPages); main dashboard unchanged
   useEffect(() => {
     const fetchSites = async () => {
       try {
         setLoadingSites(true);
-        const sitesData = await sitesAPI.getAll();
-        setSites(sitesData);
+        let apiSites = [];
+        try {
+          apiSites = await sitesAPI.getAll();
+        } catch {
+          apiSites = [];
+        }
+        const byId = new Map(apiSites.map((s) => [Number(s.id), s]));
+        const merged = ALL_HSRL_SITES.map((s) => {
+          const a = byId.get(s.id);
+          return {
+            id: s.id,
+            name: a?.name || s.name,
+            cityDisplay: a?.cityDisplay || "",
+          };
+        });
+        setSites(filterSitesForComparisonPages(merged));
       } catch (error) {
-        console.error('Error fetching sites:', error);
-        setSites([]);
+        console.error("Error building sites list:", error);
+        setSites(
+          filterSitesForComparisonPages(
+            ALL_HSRL_SITES.map((s) => ({
+              id: s.id,
+              name: s.name,
+              cityDisplay: "",
+            }))
+          )
+        );
       } finally {
         setLoadingSites(false);
       }
@@ -182,132 +224,92 @@ const MetricsComparison = () => {
   }, []);
 
   const handleDateRangeChange = (newStartDate, newEndDate) => {
-    setStartDate(newStartDate);
-    setEndDate(newEndDate);
-    try {
-      const saved = sessionStorage.getItem('metricsComparisonFilters');
-      const filters = saved ? JSON.parse(saved) : {};
-      sessionStorage.setItem('metricsComparisonFilters', JSON.stringify({
-        ...filters,
-        startDate: newStartDate,
-        endDate: newEndDate,
-        metrics: appliedMetrics
-      }));
-    } catch (e) {
-      console.error('Error saving date range:', e);
-    }
+    setPendingStartDate(newStartDate);
+    setPendingEndDate(newEndDate);
   };
 
-  // Handle Apply button click (metrics only; date range is controlled by DateRangePicker)
-  const handleApplyFilters = () => {
-    if (pendingMetrics.length === 0) return;
-    setAppliedMetrics(pendingMetrics);
-    try {
-      const saved = sessionStorage.getItem('metricsComparisonFilters');
-      const filters = saved ? JSON.parse(saved) : {};
-      sessionStorage.setItem('metricsComparisonFilters', JSON.stringify({
-        ...filters,
-        startDate,
-        endDate,
-        metrics: pendingMetrics
-      }));
-    } catch (error) {
-      console.error('Error saving filters:', error);
-    }
-  };
-
-  // Fetch metrics data for all sites using petrol-data APIs (same as Business Performance Dashboard)
+  // Fetch metrics data for all sites using petrol-data APIs (same as Business Performance Dashboard).
+  // Runs when sites or date range change — not when only `appliedMetrics` changes (same underlying rows).
   useEffect(() => {
-    if (sites.length === 0 || appliedMetrics.length === 0 || !startDate || !endDate) {
+    if (sites.length === 0 || !startDate || !endDate) {
       setSitesData([]);
       return;
     }
 
+    const fetchId = ++metricsDataFetchIdRef.current;
+
     const fetchAllSitesData = async () => {
       try {
+        setSitesData([]);
         setLoadingData(true);
 
-        // Fetch per-site data from petrol-data APIs (same source as Business Performance Dashboard)
-        const dataPromises = sites.map(async (site) => {
-          const siteIds = [site.id];
-          try {
-            const [netSalesRes, profitRes, pplRes, volRes, actualPplRes] = await Promise.all([
-              dashboardAPI.getPetrolNetSales(startDate, endDate, siteIds),
-              dashboardAPI.getPetrolProfit(startDate, endDate, siteIds),
-              dashboardAPI.getPetrolAvgPPL(startDate, endDate, siteIds),
-              dashboardAPI.getPetrolFuelVolumeTransitionBreakdown(startDate, endDate, siteIds),
-              dashboardAPI.getPetrolActualPPL(startDate, endDate, siteIds),
-            ]);
-            const netSales = netSalesRes?.totalNetSales ?? 0;
-            const profit = profitRes?.totalProfit ?? 0;
-            const avgPPL = pplRes?.avgPPL ?? 0;
-            const totalFuelVolume = volRes?.totalVolume ?? 0;
-            const pplAfterOverheads = actualPplRes?.pplAfterOverheads;
-            return {
-              siteId: site.id,
-              siteName: site.name,
-              city: site.cityDisplay,
-              netSales,
-              profit,
-              totalFuelVolume,
-              avgPPL,
-              ...(pplAfterOverheads != null && { pplAfterOverheads }),
-            };
-          } catch (error) {
-            console.error(`Error fetching petrol-data for site ${site.id}:`, error);
-            return {
-              siteId: site.id,
-              siteName: site.name,
-              city: site.cityDisplay,
-              netSales: 0,
-              profit: 0,
-              totalFuelVolume: 0,
-              avgPPL: 0,
-            };
-          }
+        const payload = await dashboardAPI.getMetricsComparisonSites(
+          startDate,
+          endDate,
+          sites.map((s) => s.id)
+        );
+        if (metricsDataFetchIdRef.current !== fetchId) return;
+
+        const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+        const byId = new Map(rows.map((r) => [Number(r.siteId), r]));
+
+        const emptyRow = (site) => ({
+          siteId: site.id,
+          siteName: site.name,
+          city: site.cityDisplay,
+          netSales: 0,
+          profit: 0,
+          fuelProfit: 0,
+          shopProfit: 0,
+          valetProfit: 0,
+          totalFuelVolume: 0,
+          grossMarginPct: 0,
+          avgPPL: 0,
         });
 
-        const allSitesData = await Promise.all(dataPromises);
-        setSitesData(allSitesData);
+        setSitesData(
+          sites.map((site) => {
+            const r = byId.get(site.id);
+            if (!r) return emptyRow(site);
+            return {
+              siteId: site.id,
+              siteName: site.name,
+              city: site.cityDisplay,
+              netSales: r.netSales,
+              profit: r.profit,
+              fuelProfit: r.fuelProfit,
+              shopProfit: r.shopProfit,
+              valetProfit: r.valetProfit,
+              totalFuelVolume: r.totalFuelVolume,
+              grossMarginPct: r.grossMarginPct,
+              avgPPL: r.avgPPL,
+              ...(r.pplAfterOverheads != null && { pplAfterOverheads: r.pplAfterOverheads }),
+            };
+          })
+        );
       } catch (error) {
         console.error('Error fetching sites data:', error);
-        setSitesData([]);
+        if (metricsDataFetchIdRef.current === fetchId) setSitesData([]);
       } finally {
-        setLoadingData(false);
+        if (metricsDataFetchIdRef.current === fetchId) setLoadingData(false);
       }
     };
 
     fetchAllSitesData();
-  }, [sites, startDate, endDate, appliedMetrics]);
+  }, [sites, startDate, endDate]);
 
-  // MultiSelect component for metrics
+
+  // Metrics multi-select dropdown (pending state — confirmed by button)
   const MetricsMultiSelect = () => {
     const [open, setOpen] = useState(false);
-
-    const handleToggle = (value) => {
-      if (pendingMetrics.includes(value)) {
-        setPendingMetrics(pendingMetrics.filter(item => item !== value));
-      } else {
-        setPendingMetrics([...pendingMetrics, value]);
-      }
-    };
-
-    const handleSelectAll = () => {
-      if (pendingMetrics.length === METRICS_OPTIONS.length) {
-        setPendingMetrics([]);
-      } else {
-        setPendingMetrics(METRICS_OPTIONS.map(opt => opt.value));
-      }
-    };
-
-    const allSelected = pendingMetrics.length === METRICS_OPTIONS.length && METRICS_OPTIONS.length > 0;
-    const displayText = pendingMetrics.length === 0 
-      ? "Select metrics" 
-      : pendingMetrics.length === 1
-      ? METRICS_OPTIONS.find(opt => opt.value === pendingMetrics[0])?.label || "Select metrics"
-      : allSelected
+    const allSelected = pendingMetrics.length === METRICS_OPTIONS.length;
+    const displayText = allSelected
       ? "All metrics"
-      : `${pendingMetrics.length} selected`;
+      : pendingMetrics.length === 0
+        ? "Select metrics"
+        : pendingMetrics.length === 1
+          ? METRICS_OPTIONS.find(o => o.value === pendingMetrics[0])?.label || "1 selected"
+          : `${pendingMetrics.length} selected`;
 
     return (
       <Popover open={open} onOpenChange={setOpen}>
@@ -315,49 +317,126 @@ const MetricsComparison = () => {
           <Button
             variant="outline"
             role="combobox"
-            className={cn(
-              "w-full justify-between bg-background border-border",
-              !pendingMetrics.length && "text-muted-foreground"
-            )}
+            className={cn("w-full justify-between bg-background border-border", !pendingMetrics.length && "text-muted-foreground")}
           >
             <span className="truncate">{displayText}</span>
             <ChevronDown className={cn("ml-2 h-4 w-4 shrink-0 opacity-50 transition-transform", open && "rotate-180")} />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0" align="start">
+        <PopoverContent className="w-[220px] p-0" align="start">
           <div className="border-b p-2">
             <Button
               variant="ghost"
               size="sm"
               className="w-full text-xs justify-start"
-              onClick={handleSelectAll}
+              onClick={() => setPendingMetrics(allSelected ? [METRICS_OPTIONS[0].value] : ALL_METRICS)}
             >
-              {allSelected ? "Clear all" : "Select all"}
+              {allSelected ? "Deselect all" : "Select all"}
             </Button>
           </div>
-          <div className="max-h-[300px] overflow-y-auto p-2">
-            {METRICS_OPTIONS.map((option) => {
+          <div className="p-2">
+            {METRICS_OPTIONS.map(option => {
               const isSelected = pendingMetrics.includes(option.value);
               return (
                 <div
                   key={option.value}
                   className="flex items-center space-x-2 p-2 hover:bg-accent rounded-sm cursor-pointer"
-                  onClick={() => handleToggle(option.value)}
+                  onClick={() => toggleMetric(option.value)}
                 >
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => handleToggle(option.value)}
-                  />
+                  <Checkbox checked={isSelected} onCheckedChange={() => toggleMetric(option.value)} />
                   <div className="flex items-center gap-2 flex-1">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: option.color }}
-                    />
-                    <label className="text-sm font-medium leading-none cursor-pointer flex-1">
-                      {option.label}
-                    </label>
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: option.color }} />
+                    <label className="text-sm font-medium leading-none cursor-pointer">{option.label}</label>
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+
+  // Chart-level filter: all 4 metrics are always clickable; unchecked = hidden on graph only (cards still follow upper filter).
+  const ChartMetricFilter = () => {
+    const [open, setOpen] = useState(false);
+    const chartOrderValues = METRICS_OPTIONS.map((o) => o.value);
+    const allChartVisible =
+      chartOrderValues.length > 0 &&
+      chartOrderValues.every((v) => chartVisibleMetrics.includes(v));
+    const labelText =
+      allChartVisible
+        ? 'All'
+        : chartVisibleMetrics.length === 1
+          ? METRICS_OPTIONS.find((o) => o.value === chartVisibleMetrics[0])?.label || '1'
+          : `${chartVisibleMetrics.length} selected`;
+
+    const handleChartFilterAll = () => {
+      setChartVisibleMetrics(
+        allChartVisible ? [chartOrderValues[0]] : [...chartOrderValues]
+      );
+    };
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+          >
+            <Filter className="w-3 h-3" />
+            <span>Filter:</span>
+            <span className="font-bold">{labelText}</span>
+            <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[200px] p-0" align="end">
+          <div className="p-1.5 border-b">
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors hover:bg-accent"
+              onClick={handleChartFilterAll}
+            >
+              <div
+                className={cn(
+                  "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0",
+                  allChartVisible ? "bg-primary border-primary" : "border-border"
+                )}
+              >
+                {allChartVisible && (
+                  <span className="text-primary-foreground text-[10px] font-bold">✓</span>
+                )}
+              </div>
+              <span className="font-medium text-foreground">All</span>
+            </button>
+          </div>
+          <div className="p-1.5 space-y-0.5">
+            {METRICS_OPTIONS.map((opt) => {
+              const checked = chartVisibleMetrics.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left hover:bg-accent transition-colors"
+                  onClick={() => toggleChartMetric(opt.value)}
+                >
+                  <div
+                    className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    style={{
+                      borderColor: opt.color,
+                      backgroundColor: checked ? opt.color : "transparent",
+                    }}
+                  >
+                    {checked && <span className="text-white text-[9px] font-bold">✓</span>}
+                  </div>
+                  <span
+                    className={cn(
+                      checked ? "text-foreground font-medium" : "text-muted-foreground"
+                    )}
+                  >
+                    {opt.label}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -381,26 +460,42 @@ const MetricsComparison = () => {
     return `${Number(liters).toFixed(2)} L`;
   };
 
-  // Median profit for data-driven trend (above median = up, below = down)
-  const medianProfit = useMemo(() => {
-    if (!sitesData.length) return null;
-    const profits = sitesData.map(s => Math.abs(Number(s.profit) || 0)).filter(p => p > 0);
-    if (!profits.length) return null;
-    const sorted = [...profits].sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  }, [sitesData]);
+  /** PPL is only meaningful when there is fuel volume; otherwise show gross margin % (same as SiteCard). */
+  const siteHasFuelVolume = (site) => Number(site?.totalFuelVolume) > 0;
+  /** PPL after O/H in pence (pplAfterOverheads ?? avgPPL) — magnitude for UI (matches SiteCard). */
+  const pplPenceDisplay = (site) =>
+    Math.abs(Number(site?.pplAfterOverheads ?? site?.avgPPL ?? 0) || 0);
+  const noFuelVolumeAcrossSites =
+    sitesData.length > 0 && sitesData.every((site) => !siteHasFuelVolume(site));
+  const getMetricDisplayLabel = (metric) => {
+    const defaultLabel = METRICS_OPTIONS.find((o) => o.value === metric)?.label || metric;
+    if (metric === 'ppl' && noFuelVolumeAcrossSites) return 'Margin';
+    return defaultLabel;
+  };
 
-  // Sort sites data based on applied metrics
-  const getSortedSitesData = () => {
+  // Sort sites data based on applied metrics (charts + default table order)
+  const getSortedSitesData = useCallback(() => {
     if (appliedMetrics.length === 0) return sitesData;
     
     return [...sitesData].sort((a, b) => {
-      // Sort by first applied metric (descending)
       const firstMetric = appliedMetrics[0];
+
+      // PPL: sites with volume first (by PPL desc); no-volume sites after (by Margin % desc)
+      if (firstMetric === 'ppl') {
+        const aVol = siteHasFuelVolume(a);
+        const bVol = siteHasFuelVolume(b);
+        if (aVol && !bVol) return -1;
+        if (!aVol && bVol) return 1;
+        if (!aVol && !bVol) {
+          return (Number(b.grossMarginPct) || 0) - (Number(a.grossMarginPct) || 0);
+        }
+        const av = a.pplAfterOverheads ?? a.avgPPL ?? 0;
+        const bv = b.pplAfterOverheads ?? b.avgPPL ?? 0;
+        return bv - av;
+      }
+
       let aValue = 0;
       let bValue = 0;
-      
       switch (firstMetric) {
         case 'sales':
           aValue = a.netSales || 0;
@@ -414,19 +509,58 @@ const MetricsComparison = () => {
           aValue = a.totalFuelVolume || 0;
           bValue = b.totalFuelVolume || 0;
           break;
-        case 'ppl':
-          aValue = a.pplAfterOverheads ?? a.avgPPL ?? 0;
-          bValue = b.pplAfterOverheads ?? b.avgPPL ?? 0;
+        default:
           break;
       }
-      
       return bValue - aValue;
     });
-  };
+  }, [sitesData, appliedMetrics]);
+
+  /** Row order for table view (explicit column sort or chart default). */
+  const tableOrderedSites = useMemo(() => {
+    const compareColumn = (a, b, key) => {
+      switch (key) {
+        case "siteName":
+          return (a.siteName || "").localeCompare(b.siteName || "", undefined, {
+            sensitivity: "base",
+          });
+        case "sales":
+          return (Number(a.netSales) || 0) - (Number(b.netSales) || 0);
+        case "profit":
+          return Math.abs(Number(a.profit) || 0) - Math.abs(Number(b.profit) || 0);
+        case "saleVolume":
+          return (Number(a.totalFuelVolume) || 0) - (Number(b.totalFuelVolume) || 0);
+        case "ppl": {
+          const aVol = siteHasFuelVolume(a);
+          const bVol = siteHasFuelVolume(b);
+          if (aVol !== bVol) return aVol ? -1 : 1;
+          if (aVol) {
+            return pplPenceDisplay(a) - pplPenceDisplay(b);
+          }
+          return (Number(a.grossMarginPct) || 0) - (Number(b.grossMarginPct) || 0);
+        }
+        default:
+          return 0;
+      }
+    };
+
+    if (!tableSort.key) return getSortedSitesData();
+    const list = [...sitesData];
+    const sign = tableSort.direction === "asc" ? 1 : -1;
+    list.sort((a, b) => sign * compareColumn(a, b, tableSort.key));
+    return list;
+  }, [sitesData, tableSort, getSortedSitesData]);
+
+  useEffect(() => {
+    if (!tableSort.key || tableSort.key === "siteName") return;
+    if (!appliedMetrics.includes(tableSort.key)) {
+      setTableSort({ key: null, direction: "desc" });
+    }
+  }, [appliedMetrics, tableSort.key]);
 
   // Prepare data for Plotly bar chart
   const barChartData = useMemo(() => {
-    if (sitesData.length === 0 || appliedMetrics.length === 0) return null;
+    if (sitesData.length === 0) return null;
 
     const sortedData = getSortedSitesData();
     const siteNames = sortedData.map(site => site.siteName);
@@ -447,314 +581,189 @@ const MetricsComparison = () => {
       return `${Number(liters).toFixed(2)} L`;
     };
 
-    const traces = appliedMetrics.map(metric => {
+    const metricsToPlot = METRICS_OPTIONS.map((o) => o.value).filter((m) =>
+      chartVisibleMetrics.includes(m)
+    );
+
+    const esc = (s) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    /**
+     * Per-point hover templates (not `text` + hoverinfo:text): Plotly puts `text` on SVG as plain text,
+     * which shows raw HTML. `hovertemplate` per point is rendered as HTML in the hover foreignObject.
+     */
+    /**
+     * Plotly sanitizes hover HTML: `<div>`, `<span>`, and most `style=` are shown as literal text.
+     * Use only `<b>` + `<br>` (supported) and rely on `layout.hoverlabel.font` for base styling.
+     */
+    const siteHoverTemplates = sortedData.map((site) => {
+      const formatMetricValue = (m) => {
+        if (m === "ppl" && !siteHasFuelVolume(site)) {
+          return `${(Number(site.grossMarginPct) || 0).toFixed(2)}%`;
+        }
+        switch (m) {
+          case "sales":
+            return formatCurrencyValue(site.netSales || 0);
+          case "profit":
+            return formatCurrencyValue(Math.abs(site.profit || 0));
+          case "saleVolume":
+            return formatVolumeValue(site.totalFuelVolume || 0);
+          case "ppl": {
+            const v = site.pplAfterOverheads ?? site.avgPPL ?? 0;
+            return `${(Number(v) || 0).toFixed(2)} p`;
+          }
+          default:
+            return "";
+        }
+      };
+
+      const rows = metricsToPlot.map((m) => {
+        const opt = METRICS_OPTIONS.find((o) => o.value === m);
+        const val = formatMetricValue(m);
+        return `${esc(opt?.label || m)}: <b>${esc(val)}</b>`;
+      });
+
+      return `<b>${esc(site.siteName)}</b><br>${rows.join("<br>")}<extra></extra>`;
+    });
+
+    const traces = metricsToPlot.map((metric) => {
       const metricOption = METRICS_OPTIONS.find(opt => opt.value === metric);
       const values = sortedData.map(site => {
         switch (metric) {
-          case 'sales':
-            return site.netSales || 0;
-          case 'profit':
-            return Math.abs(site.profit || 0);
-          case 'saleVolume':
-            return site.totalFuelVolume || 0;
-          case 'ppl':
-            return site.pplAfterOverheads ?? site.avgPPL ?? 0;
-          default:
-            return 0;
+          case 'sales':    return site.netSales || 0;
+          case 'profit':   return Math.abs(site.profit || 0);
+          case 'saleVolume': return site.totalFuelVolume || 0;
+          case 'ppl':      return siteHasFuelVolume(site) ? (site.pplAfterOverheads ?? site.avgPPL ?? 0) : null;
+          default:         return 0;
         }
       });
-
-      // Create custom hover data that includes all metrics for each site
-      // We'll build the hover text as a pre-formatted string for each site
-      const customdata = sortedData.map((site) => {
-        // Build the hover text with all metrics for this site, with white color styling
-        let hoverText = `<span style="color: white;"><b>${site.siteName}</b><br>`;
-        
-        appliedMetrics.forEach(m => {
-          const mOption = METRICS_OPTIONS.find(opt => opt.value === m);
-          let value = 0;
-          let formattedValue = '';
-          
-          switch (m) {
-            case 'sales':
-              value = site.netSales || 0;
-              formattedValue = formatCurrencyValue(value);
-              break;
-            case 'profit':
-              value = Math.abs(site.profit || 0);
-              formattedValue = formatCurrencyValue(value);
-              break;
-            case 'saleVolume':
-              value = site.totalFuelVolume || 0;
-              formattedValue = formatVolumeValue(value);
-              break;
-            case 'ppl':
-              value = site.pplAfterOverheads ?? site.avgPPL ?? 0;
-              formattedValue = `${(Number(value) || 0).toFixed(2)} p`;
-              break;
-          }
-          
-          hoverText += `${mOption?.label || m}: ${formattedValue}<br>`;
-        });
-        
-        hoverText += '</span><extra></extra>';
-        
-        return hoverText;
-      });
-
-      // Build hover template - use customdata directly as the hover text
-      const hoverTemplate = '%{customdata}';
 
       return {
         x: siteNames,
         y: values,
         name: metricOption?.label || metric,
         type: 'bar',
-        marker: {
-          color: metricOption?.color || '#8884d8',
-        },
-        customdata: customdata,
-        hovertemplate: hoverTemplate,
+        marker: { color: metricOption?.color || '#8884d8' },
+        hovertemplate: siteHoverTemplates,
       };
     });
 
     return {
       data: traces,
       layout: {
-        title: {
+        title: isMobile ? false : {
           text: 'Metrics Comparison Across All Sites',
-          font: { size: 18, color: 'hsl(var(--foreground))' },
+          font: { size: 18, color: isDarkChart ? '#f1f5f9' : '#0f172a' },
         },
         xaxis: {
-          title: 'Sites',
-          tickangle: -45,
-          tickfont: { size: 10, color: 'hsl(var(--muted-foreground))' },
+          title: isMobile ? '' : 'Sites',
+          tickangle: isMobile ? -55 : -45,
+          tickfont: { size: isMobile ? 9 : 10, color: isDarkChart ? '#94a3b8' : '#64748b' },
+          automargin: true,
         },
         yaxis: {
-          title: 'Value',
-          tickfont: { color: 'hsl(var(--muted-foreground))' },
+          title: isMobile ? '' : 'Value',
+          tickfont: { size: isMobile ? 9 : 11, color: isDarkChart ? '#94a3b8' : '#64748b' },
+          automargin: true,
         },
-        barmode: appliedMetrics.length > 1 ? 'group' : 'bar',
+        barmode: 'group',
         hovermode: 'closest',
+        dragmode: false,
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
-        font: { color: 'hsl(var(--foreground))' },
+        font: { color: isDarkChart ? '#f1f5f9' : '#0f172a' },
         hoverlabel: {
-          bgcolor: 'rgba(0, 0, 0, 0.8)',
-          bordercolor: 'rgba(255, 255, 255, 0.2)',
+          bgcolor: isDarkChart ? "rgba(30, 41, 59, 0.78)" : "rgba(255, 255, 255, 0.82)",
+          bordercolor: isDarkChart ? "rgba(148, 163, 184, 0.35)" : "rgba(128, 155, 185, 0.45)",
           font: {
-            color: '#ffffff',
-            size: 12,
+            color: isDarkChart ? "#f1f5f9" : "#0f172a",
+            size: isMobile ? 12 : 14,
+            family: "system-ui, -apple-system, 'Plus Jakarta Sans', sans-serif",
           },
+          align: "left",
+          namelength: 0,
         },
-        legend: {
-          orientation: isMobile ? 'v' : 'h',
-          yanchor: isMobile ? 'top' : 'bottom',
-          y: isMobile ? -0.2 : 1.02,
-          xanchor: isMobile ? 'left' : 'right',
-          x: isMobile ? 0 : 1,
-          font: { 
-            color: 'hsl(var(--foreground))',
-            size: isMobile ? 9 : 12
-          },
-        },
-        margin: { 
-          l: isMobile ? 40 : 60, 
-          r: isMobile ? 10 : 20, 
-          t: isMobile ? 60 : 80, 
-          b: isMobile ? 120 : 100 
+        showlegend: false,
+        margin: {
+          l: isMobile ? 44 : 60,
+          r: isMobile ? 8 : 20,
+          t: isMobile ? 16 : 40,
+          b: isMobile ? 90 : 100,
         },
       },
       config: {
-        displayModeBar: true,
+        displayModeBar: false,
         responsive: true,
         displaylogo: false,
+        scrollZoom: false,
+        doubleClick: false,
+        staticPlot: false,
       },
     };
-  }, [sitesData, appliedMetrics]);
+  }, [sitesData, chartVisibleMetrics, getSortedSitesData, isMobile, isDarkChart]);
 
-  // Prepare data for Plotly pie charts (one per applied metric)
-  const pieChartsData = useMemo(() => {
-    if (sitesData.length === 0 || appliedMetrics.length === 0) return [];
-
-    const sortedData = getSortedSitesData();
-    
-    return appliedMetrics.map(metric => {
-      const metricOption = METRICS_OPTIONS.find(opt => opt.value === metric);
-      
-      // Get all data - show ALL sites, no grouping
-      const labels = sortedData.map(site => site.siteName);
-      const values = sortedData.map(site => {
-        switch (metric) {
-          case 'sales':
-            return site.netSales || 0;
-          case 'profit':
-            return Math.abs(site.profit || 0);
-          case 'saleVolume':
-            return site.totalFuelVolume || 0;
-          case 'ppl':
-            return site.pplAfterOverheads ?? site.avgPPL ?? 0;
-          default:
-            return 0;
-        }
-      });
-
-      // Generate color palette based on metric color
-      const generateColorPalette = (baseColor, count) => {
-        // Convert hex to RGB
-        const hex = baseColor.replace('#', '');
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const b = parseInt(hex.substring(4, 6), 16);
-        
-        // Generate variations with better contrast for all sites
-        const colors = [];
-        for (let i = 0; i < count; i++) {
-          // Create distinct color variations using HSL-like transformations
-          // Vary brightness and saturation to create more distinct colors
-          const brightnessVariation = 0.4 + (i % 8) * 0.1;
-          const saturationVariation = 0.7 + (Math.floor(i / 8) % 3) * 0.1;
-          
-          const newR = Math.min(255, Math.max(0, Math.floor(r * brightnessVariation * saturationVariation)));
-          const newG = Math.min(255, Math.max(0, Math.floor(g * brightnessVariation * saturationVariation)));
-          const newB = Math.min(255, Math.max(0, Math.floor(b * brightnessVariation * saturationVariation)));
-          
-          colors.push(`rgb(${newR}, ${newG}, ${newB})`);
-        }
-        return colors;
-      };
-
-      return {
-        data: [{
-          labels: labels,
-          values: values,
-          type: 'pie',
-          hole: 0.4,
-          marker: {
-            colors: generateColorPalette(metricOption?.color || '#8884d8', labels.length),
-            line: {
-              color: 'hsl(var(--background))',
-              width: 2,
-            },
-          },
-          // Show percentage inside slices, site names in legend only
-          textinfo: 'percent',
-          textposition: 'inside',
-          textfont: {
-            size: 13,
-            color: '#ffffff', // White text for better visibility
-            family: 'Arial, sans-serif',
-          },
-          // Don't show labels outside to prevent overlap
-          insidetextorientation: 'radial',
-          // Only show text on slices larger than 3% to avoid clutter
-          automargin: true,
-          hovertemplate: '<b>%{label}</b><br>' +
-            `${metricOption?.label || metric}: %{value:,.0f}<br>` +
-            'Percentage: %{percent}<br>' +
-            '<extra></extra>',
-        }],
-        layout: {
-          title: {
-            text: `${metricOption?.label || metric} Distribution`,
-            font: { size: 16, color: 'hsl(var(--foreground))' },
-          },
-          paper_bgcolor: 'transparent',
-          plot_bgcolor: 'transparent',
-          font: { color: 'hsl(var(--foreground))' },
-          showlegend: true,
-          legend: {
-            font: { 
-              color: 'hsl(var(--foreground))',
-              size: isMobile ? 8 : 10,
-            },
-            orientation: isMobile ? 'h' : 'v',
-            x: isMobile ? 0.5 : 1.02,
-            y: isMobile ? -0.15 : 0.5,
-            xanchor: isMobile ? 'center' : 'left',
-            yanchor: isMobile ? 'top' : 'middle',
-            traceorder: 'normal',
-            itemwidth: isMobile ? 20 : 25,
-            bgcolor: 'transparent',
-            bordercolor: 'hsl(var(--border))',
-            borderwidth: 1,
-            // Make legend scrollable if there are many items
-            yref: 'paper',
-          },
-          margin: { 
-            l: 0, 
-            r: isMobile ? 0 : isTablet ? 150 : 250, 
-            t: isMobile ? 40 : 60, 
-            b: isMobile ? 5 : 20 
-          },
-          annotations: [{
-            text: `Showing all ${labels.length} sites`,
-            showarrow: false,
-            x: 0.5,
-            y: -0.12,
-            xref: 'paper',
-            yref: 'paper',
-            font: { 
-              size: 10, 
-              color: 'hsl(var(--muted-foreground))' 
-            },
-          }],
-        },
-        config: {
-          displayModeBar: true,
-          responsive: true,
-          displaylogo: false,
-        },
-      };
-    });
-  }, [sitesData, appliedMetrics]);
-
-  // Apply text shadow styling to Plotly pie chart text for better visibility
-  // This must be after pieChartsData is defined
-  useEffect(() => {
-    const applyTextStyling = () => {
-      const pieTextElements = document.querySelectorAll('.js-plotly-plot .pie text');
-      pieTextElements.forEach((textEl) => {
-        textEl.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.9), -2px -2px 4px rgba(0, 0, 0, 0.9), 2px -2px 4px rgba(0, 0, 0, 0.9), -2px 2px 4px rgba(0, 0, 0, 0.9)';
-        textEl.style.fontWeight = 'bold';
-        textEl.style.fontSize = '13px';
-      });
-    };
-
-    // Apply immediately
-    applyTextStyling();
-
-    // Apply after a short delay to catch dynamically rendered elements
-    const timeoutId = setTimeout(applyTextStyling, 100);
-    
-    // Also apply on any DOM mutations (when charts update)
-    const observer = new MutationObserver(applyTextStyling);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      clearTimeout(timeoutId);
-      observer.disconnect();
-    };
-  }, [pieChartsData, loadingData, appliedMetrics]);
+  const renderTableSortArrows = (columnKey, labelShort) => (
+    <div
+      className="inline-flex flex-col border border-border/60 rounded overflow-hidden shrink-0 bg-background/80"
+      onClick={(e) => e.stopPropagation()}
+      role="group"
+      aria-label={`Sort ${labelShort}`}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "h-6 w-6 rounded-none p-0 min-w-0",
+          tableSort.key === columnKey && tableSort.direction === "asc" && "bg-primary/15 text-primary"
+        )}
+        aria-label={`${labelShort}: ascending`}
+        onClick={() => setTableSort({ key: columnKey, direction: "asc" })}
+      >
+        <ArrowUp className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className={cn(
+          "h-6 w-6 rounded-none p-0 min-w-0 border-t border-border/60",
+          tableSort.key === columnKey && tableSort.direction === "desc" && "bg-primary/15 text-primary"
+        )}
+        aria-label={`${labelShort}: descending`}
+        onClick={() => setTableSort({ key: columnKey, direction: "desc" })}
+      >
+        <ArrowDown className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="relative flex min-h-screen min-w-0 flex-col bg-transparent">
       {/* Sidebar */}
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
       {/* Main Content */}
-      <div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <main 
           style={{ willChange: 'margin-left' }}
-          className={`transition-[margin-left] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
+          className={`flex flex-1 flex-col min-h-0 min-w-0 transition-[margin-left] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'} ml-0`}
         >
-          <Header 
-            sidebarOpen={sidebarOpen} 
-            onToggleSidebar={toggleSidebar} 
-            totalSales={totalSalesAllSites}
-          />
+          <div className="mx-2 mt-2 mb-3 flex min-h-0 min-w-0 flex-1 flex-col gap-2 sm:mx-3 sm:mt-3 sm:mb-4 sm:gap-3 lg:mx-5 lg:mt-4 lg:mb-6 lg:gap-3">
+          <div className="main-stage-header-card">
+            <Header
+              sidebarOpen={sidebarOpen}
+              onToggleSidebar={toggleSidebar}
+              showTotalSales={false}
+            />
+          </div>
           
-          <div className="p-4 lg:p-6">
+          <div className="main-stage-card flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 min-w-0 flex-1 p-4 sm:p-5 lg:p-8">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -768,62 +777,49 @@ const MetricsComparison = () => {
 
             {/* Filter Section */}
             <div className="chart-card mb-4 lg:mb-6 animate-slide-up">
-              <div className="flex items-center justify-between mb-3 lg:mb-4">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-primary" />
-                  <span className="text-sm lg:text-base font-semibold text-foreground">
-                    Filters
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-4 h-4 text-primary" />
+                <span className="text-sm lg:text-base font-semibold text-foreground">Filters</span>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 lg:gap-4 mb-4">
-                {/* Date range (same as Business Performance Dashboard: May–Dec default, Jan–Apr disabled) */}
-                <div className="chart-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">
-                    Date range
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Date Range</p>
                   <DateRangePicker
-                    startDate={startDate}
-                    endDate={endDate}
+                    startDate={pendingStartDate}
+                    endDate={pendingEndDate}
                     onDateChange={handleDateRangeChange}
-                    minDate="2025-05-01"
                   />
                 </div>
-
-                {/* Metrics Selector */}
                 <div>
-                  <label className="text-xs font-medium text-primary mb-2 block">
-                    Select Metrics
-                  </label>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Select Metrics</p>
                   <MetricsMultiSelect />
                 </div>
               </div>
-
-              {/* Apply Button */}
               <div className="flex justify-end">
                 <Button
-                  onClick={handleApplyFilters}
+                  onClick={handleConfirmFilters}
                   disabled={pendingMetrics.length === 0}
-                  className="flex items-center gap-2 w-full sm:w-auto"
-                  size="sm"
+                  className={cn(
+                    "flex items-center gap-2 w-full sm:w-auto transition-all",
+                    hasUnappliedChanges && "ring-2 ring-primary/50"
+                  )}
                 >
                   <Filter className="w-4 h-4" />
-                  <span className="text-xs sm:text-sm">Apply Filters</span>
+                  Apply Filters
                 </Button>
               </div>
             </div>
 
-            {/* All 29 Sites - Show after filters are applied, only in charts view */}
-            {appliedMetrics.length > 0 && sitesData.length > 0 && viewMode === 'charts' && (
+            {/* Site cards grid — heading uses total comparison sites (fixed); batch fetch still fills cards progressively */}
+            {sitesData.length > 0 && viewMode === 'charts' && (
               <div className="mb-6 lg:mb-8">
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1">
                     <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1">
-                      All 29 Sites
+                      {sites.length} site{sites.length === 1 ? "" : "s"}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Comparing {sitesData.length} sites by {appliedMetrics.map(m => METRICS_OPTIONS.find(o => o.value === m)?.label).join(', ')}
+                      {appliedMetrics.map((m) => getMetricDisplayLabel(m)).join(", ")}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -857,10 +853,7 @@ const MetricsComparison = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-                    {getSortedSitesData().map((siteData, index) => {
-                      const profitAbs = Math.abs(Number(siteData.profit) || 0);
-                      const trend = medianProfit != null ? (profitAbs >= medianProfit ? 'up' : 'down') : undefined;
-                      return (
+                    {getSortedSitesData().map((siteData, index) => (
                         <SiteCard
                           key={siteData.siteId}
                           site={{
@@ -872,119 +865,69 @@ const MetricsComparison = () => {
                           }}
                           metrics={siteData}
                           index={index}
-                          trend={trend}
+                          visibleMetrics={appliedMetrics}
                         />
-                      );
-                    })}
+                    ))}
                   </div>
                 )}
               </div>
             )}
 
             {/* Charts View */}
-            {appliedMetrics.length > 0 && viewMode === 'charts' && (
+            {viewMode === 'charts' && (
               <>
                 {/* Bar Chart */}
                 {barChartData && (
                   <div className="chart-card mb-4 lg:mb-6 animate-slide-up">
                     <div className="mb-3 sm:mb-4">
-                      <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                        <span>Bar Chart Comparison</span>
-                      </h3>
-                      <p className="text-xs text-muted-foreground">
-                        Visual comparison of selected metrics across all sites
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base sm:text-lg font-semibold text-foreground mb-0.5 flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                            <span>Bar Chart Comparison</span>
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            Visual comparison of selected metrics across all sites
+                          </p>
+                        </div>
+                        {/* Chart-only filter dropdown — right side */}
+                        <ChartMetricFilter />
+                      </div>
                     </div>
                     {loadingData ? (
                       <div className="flex items-center justify-center h-96">
                         <div className="text-muted-foreground">Loading chart data...</div>
                       </div>
                     ) : (
-                      <div className="w-full" style={{ height: isMobile ? '350px' : isTablet ? '400px' : '500px' }}>
+                      <div
+                        className="metrics-comparison-plot plotly-glass-tooltip w-full"
+                        style={{ height: isMobile ? "440px" : isTablet ? "420px" : "500px" }}
+                      >
                         <Plot
                           data={barChartData.data}
                           layout={barChartData.layout}
                           config={barChartData.config}
-                          style={{ width: '100%', height: '100%' }}
+                          style={{ width: "100%", height: "100%" }}
                           useResizeHandler={true}
                         />
                       </div>
                     )}
                   </div>
                 )}
-
-                {/* Pie Charts */}
-                {pieChartsData.length > 0 && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                    {pieChartsData.map((pieData, index) => {
-                      const metric = appliedMetrics[index];
-                      const metricOption = METRICS_OPTIONS.find(opt => opt.value === metric);
-                      return (
-                        <div key={metric} className="chart-card animate-slide-up">
-                          <div className="mb-3 sm:mb-4">
-                            <h3 className="text-sm sm:text-base font-semibold text-foreground mb-1 flex items-center gap-2">
-                              <PieChart className="w-3 h-3 sm:w-4 sm:h-4" style={{ color: metricOption?.color }} />
-                              <span className="truncate">{metricOption?.label || metric} Distribution</span>
-                            </h3>
-                            <p className="text-xs text-muted-foreground">
-                              Percentage distribution across all sites
-                            </p>
-                          </div>
-                          {loadingData ? (
-                            <div className="flex items-center justify-center h-64">
-                              <div className="text-muted-foreground">Loading chart...</div>
-                            </div>
-                          ) : (
-                            <div className="w-full" style={{ height: isMobile ? '450px' : isTablet ? '400px' : '400px' }}>
-                              <Plot
-                                data={pieData.data}
-                                layout={pieData.layout}
-                                config={pieData.config}
-                                style={{ width: '100%', height: '100%' }}
-                                useResizeHandler={true}
-                                onInitialized={(figure, graphDiv) => {
-                                  // Add text shadow to pie chart text for better visibility
-                                  if (graphDiv) {
-                                    const textElements = graphDiv.querySelectorAll('.pie text');
-                                    textElements.forEach((textEl) => {
-                                      textEl.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8), 1px -1px 2px rgba(0, 0, 0, 0.8), -1px 1px 2px rgba(0, 0, 0, 0.8)';
-                                      textEl.style.fontWeight = 'bold';
-                                    });
-                                  }
-                                }}
-                                onUpdate={(figure, graphDiv) => {
-                                  // Reapply text shadow on updates
-                                  if (graphDiv) {
-                                    const textElements = graphDiv.querySelectorAll('.pie text');
-                                    textElements.forEach((textEl) => {
-                                      textEl.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.8), 1px -1px 2px rgba(0, 0, 0, 0.8), -1px 1px 2px rgba(0, 0, 0, 0.8)';
-                                      textEl.style.fontWeight = 'bold';
-                                    });
-                                  }
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
               </>
             )}
 
             {/* Table View */}
-            {appliedMetrics.length > 0 && viewMode === 'table' && (
+            {viewMode === 'table' && (
               <>
                 {/* Header with view toggle */}
                 <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex-1">
                     <h3 className="text-lg sm:text-xl font-bold text-foreground mb-1">
-                      All 29 Sites
+                      {sites.length} site{sites.length === 1 ? "" : "s"}
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                      Comparing {sitesData.length} sites by {appliedMetrics.map(m => METRICS_OPTIONS.find(o => o.value === m)?.label).join(', ')}
+                      {appliedMetrics.map((m) => getMetricDisplayLabel(m)).join(", ")}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -1023,57 +966,77 @@ const MetricsComparison = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto -mx-4 sm:mx-0">
-                    <div className="inline-block min-w-full align-middle px-4 sm:px-0">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="min-w-[120px] sm:min-w-[150px] text-xs sm:text-sm">Site Name</TableHead>
-                            <TableHead className="min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm">City</TableHead>
+                  <div className="w-full sm:overflow-visible overflow-x-auto">
+                    <Table className="sm:w-full w-max min-w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead
+                            className="min-w-[130px] sm:min-w-[150px] text-xs sm:text-sm sticky left-0 z-20 sm:static sm:bg-transparent"
+                            style={{ backgroundColor: 'hsl(var(--card))' }}
+                          >
+                            <div className="flex items-center justify-between gap-2 pr-1">
+                              <span>Site Name</span>
+                              {renderTableSortArrows("siteName", "Site name")}
+                            </div>
+                          </TableHead>
                           {appliedMetrics.includes('sales') && (
                             <TableHead className="text-right min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm">
                               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#3b82f6' }} />
-                                <span>Sales</span>
+                                <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: 'hsl(var(--chart-blue))' }} />
+                                  <span>Sales</span>
+                                </div>
+                                {renderTableSortArrows("sales", "Sales")}
                               </div>
                             </TableHead>
                           )}
                           {appliedMetrics.includes('profit') && (
                             <TableHead className="text-right min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm">
                               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#10b981' }} />
-                                <span>Profit</span>
+                                <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: '#10b981' }} />
+                                  <span title={`Fuel + shop + ${COFFEE_VALET_REVENUE_LABEL} (combined)`}>Gross Profit</span>
+                                </div>
+                                {renderTableSortArrows("profit", "Gross profit")}
                               </div>
                             </TableHead>
                           )}
                           {appliedMetrics.includes('saleVolume') && (
                             <TableHead className="text-right min-w-[100px] sm:min-w-[120px] text-xs sm:text-sm">
                               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#f59e0b' }} />
-                                <span className="hidden sm:inline">Sale Volume</span>
-                                <span className="sm:hidden">Volume</span>
+                                <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: '#f59e0b' }} />
+                                  <span className="hidden sm:inline">Sale Volume</span>
+                                  <span className="sm:hidden">Volume</span>
+                                </div>
+                                {renderTableSortArrows("saleVolume", "Sale volume")}
                               </div>
                             </TableHead>
                           )}
                           {appliedMetrics.includes('ppl') && (
                             <TableHead className="text-right min-w-[80px] sm:min-w-[100px] text-xs sm:text-sm">
                               <div className="flex items-center justify-end gap-1 sm:gap-2">
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full" style={{ backgroundColor: '#8b5cf6' }} />
-                                <span>PPL</span>
+                                <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" style={{ backgroundColor: '#8b5cf6' }} />
+                                  <span>{noFuelVolumeAcrossSites ? "Margin" : "PPL after O/H"}</span>
+                                </div>
+                                {renderTableSortArrows("ppl", noFuelVolumeAcrossSites ? "Margin" : "PPL after O/H")}
                               </div>
                             </TableHead>
                           )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {getSortedSitesData().map((site, index) => (
+                        {tableOrderedSites.map((site, index) => (
                           <TableRow key={site.siteId} className={index % 2 === 0 ? 'bg-card/30' : ''}>
-                            <TableCell className="font-medium text-xs sm:text-sm">
+                            <TableCell
+                              className="font-medium text-xs sm:text-sm sticky left-0 z-10 sm:static"
+                              style={{ backgroundColor: 'hsl(var(--card))' }}
+                            >
                               {site.siteName}
                             </TableCell>
-                            <TableCell className="text-muted-foreground text-xs sm:text-sm">{site.city}</TableCell>
                             {appliedMetrics.includes('sales') && (
-                              <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: '#3b82f6' }}>
+                              <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: 'hsl(var(--chart-blue))' }}>
                                 {formatCurrency(site.netSales || 0)}
                               </TableCell>
                             )}
@@ -1089,38 +1052,23 @@ const MetricsComparison = () => {
                             )}
                             {appliedMetrics.includes('ppl') && (
                               <TableCell className="text-right font-semibold text-xs sm:text-sm" style={{ color: '#8b5cf6' }}>
-                                {(site.pplAfterOverheads ?? site.avgPPL)?.toFixed(2) || '0.00'} p
+                                {siteHasFuelVolume(site)
+                                  ? `${(Number(site.pplAfterOverheads ?? site.avgPPL ?? 0) || 0).toFixed(2)} p`
+                                  : `${(Number(site.grossMarginPct) || 0).toFixed(2)}%`}
                               </TableCell>
                             )}
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
-                    </div>
                   </div>
                 )}
                 </div>
               </>
             )}
 
-            {/* Empty State */}
-            {appliedMetrics.length === 0 && (
-              <div className="chart-card h-96 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                    <BarChart3 className="w-8 h-8 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Select Metrics to Compare
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Choose one or more metrics from the filter above to view comparison across all sites
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+          </div>
+          </div>
           </div>
         </main>
       </div>
